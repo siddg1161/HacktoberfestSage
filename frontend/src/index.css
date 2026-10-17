@@ -1,0 +1,137 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Kalam:wght@400;700&display=swap");
+@import "tailwindcss";
+
+:root {
+  font-family: "DM Sans", sans-serif;
+  color: #17221d;
+  background: #f7f7f2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Manrope", sans-serif;
+}
+
+.font-hand {
+  font-family: "Kalam", cursive;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(23, 34, 29, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 34, 29, 0.045) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.auth-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.paper-lines {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 23px,
+    rgba(77, 77, 68, 0.16) 24px
+  );
+}
+
+.cta-dots {
+  background-image: radial-gradient(rgba(23, 34, 29, 0.35) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(circle at center, transparent 25%, black 100%);
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6a841d;
+}
+
+.section-title {
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+}
+
+.section-copy {
+  font-size: 17px;
+  line-height: 1.75;
+  color: #69736e;
+}
+
+.float-card {
+  animation: float 4s ease-in-out infinite;
+}
+
+.loader {
+  animation: spin 0.8s linear infinite;
+}
+
+.processing-dot {
+  animation: pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .float-card,
+  .loader,
+  .processing-dot {
+    animation: none;
+  }
+}

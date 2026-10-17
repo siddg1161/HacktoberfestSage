@@ -1,0 +1,336 @@
+import { FormEvent, useState } from "react";
+
+type AuthIcon = "arrow" | "check" | "eye" | "eyeOff" | "file" | "lock" | "sparkle";
+
+function Icon({
+  name,
+  className = "h-5 w-5",
+}: {
+  name: AuthIcon;
+  className?: string;
+}) {
+  const paths: Record<AuthIcon, React.ReactNode> = {
+    arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+    check: <path d="m5 12 4 4L19 6" />,
+    eye: (
+      <>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ),
+    eyeOff: (
+      <>
+        <path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.3A9.8 9.8 0 0 1 12 4c6.5 0 10 8 10 8a17 17 0 0 1-2.1 3.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 8 10 8a9.7 9.7 0 0 0 4.2-.9" />
+      </>
+    ),
+    file: (
+      <>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect width="16" height="11" x="4" y="11" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      </>
+    ),
+    sparkle: (
+      <>
+        <path d="m12 3-1.2 3.1a7.5 7.5 0 0 1-4.3 4.3L3 12l3.5 1.6a7.5 7.5 0 0 1 4.3 4.3L12 21l1.2-3.1a7.5 7.5 0 0 1 4.3-4.3L21 12l-3.5-1.6a7.5 7.5 0 0 1-4.3-4.3Z" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
+
+export default function TechnicianAuth({
+  onSuccess,
+}: {
+  onSuccess: () => void;
+}) {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+
+  const switchMode = (nextMode: "login" | "signup") => {
+    setMode(nextMode);
+    setError("");
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if ((mode === "signup" && name.trim().length < 2) || phone.trim().length < 8) {
+      setError("Please enter your correct details.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must contain at least 6 characters.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    window.setTimeout(() => {
+      setLoading(false);
+      const displayName =
+        name.trim() ||
+        (phone.trim() ? `Tech (${phone.trim().slice(-4)})` : "Vikram Patel");
+      localStorage.setItem("parchipay_tech_name", displayName);
+      localStorage.setItem(
+        "parchipay_tech_phone",
+        phone.trim() ? `+91 ${phone.trim()}` : "+91 98261 44820",
+      );
+      onSuccess();
+    }, 900);
+  };
+
+  const demoLogin = () => {
+    localStorage.setItem("parchipay_tech_name", "Vikram Patel");
+    localStorage.setItem("parchipay_tech_phone", "+91 98261 44820");
+    onSuccess();
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f4f5ef] text-[#17221d]">
+      <header className="absolute inset-x-0 top-0 z-20">
+        <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
+          <button
+            type="button"
+            onClick={() => {
+              window.location.hash = "";
+            }}
+            className="flex items-center gap-2.5"
+            aria-label="Back to home"
+          >
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
+              <Icon name="file" className="h-5 w-5" />
+            </span>
+            <span className="text-[20px] font-extrabold tracking-[-0.04em]">
+              parchi<span className="text-[#5f7a13]">pay</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.hash = "";
+            }}
+            className="text-xs font-extrabold text-[#64706a] hover:text-[#17221d]"
+          >
+            Back to website
+          </button>
+        </div>
+      </header>
+
+      <main className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
+        <section className="relative hidden overflow-hidden bg-[#17221d] px-12 pb-14 pt-32 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="auth-grid absolute inset-0 opacity-30" />
+          <div className="absolute -left-28 top-1/3 h-80 w-80 rounded-full bg-[#caff52]/15 blur-3xl" />
+          <div className="relative max-w-xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/70">
+              <Icon name="sparkle" className="h-3.5 w-3.5 text-[#caff52]" />
+              Technician workspace
+            </span>
+            <h1 className="mt-7 text-5xl font-extrabold leading-[1.02] tracking-[-0.05em] xl:text-6xl">
+              Finish the visit.
+              <br />
+              Send the parchi.
+              <br />
+              <span className="text-[#caff52]">We&apos;ll do the rest.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-7 text-white/55">
+              Capture job details while they&apos;re fresh. Your office gets
+              everything needed to prepare an accurate quote.
+            </p>
+          </div>
+
+          <div className="relative max-w-lg rounded-[26px] border border-white/10 bg-white/7 p-5 backdrop-blur">
+            <div className="flex items-center gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#caff52] text-[#17221d]">
+                <Icon name="check" className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="text-sm font-extrabold">Today&apos;s work, neatly captured</p>
+                <p className="mt-1 text-xs text-white/45">
+                  12 field jobs submitted by the team
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex items-center justify-center px-5 pb-12 pt-28 sm:px-8 lg:pt-24">
+          <div className="w-full max-w-[440px]">
+            <div className="lg:hidden">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#e8eddf] px-3 py-2 text-xs font-extrabold text-[#5f741e]">
+                <Icon name="lock" className="h-3.5 w-3.5" />
+                Technician access
+              </span>
+            </div>
+            <p className="hidden text-xs font-extrabold uppercase tracking-[0.18em] text-[#6a841d] lg:block">
+              Technician access
+            </p>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
+              {mode === "login" ? "Welcome back" : "Join your field team"}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[#707a75]">
+              {mode === "login"
+                ? "Sign in to send a new parchi and voice note."
+                : "Create your technician account to start submitting jobs."}
+            </p>
+
+            <div className="mt-8 grid grid-cols-2 rounded-xl bg-[#e9ebe5] p-1">
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                className={`rounded-lg py-3 text-xs font-extrabold transition ${
+                  mode === "login" ? "bg-white shadow-sm" : "text-[#75807a]"
+                }`}
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode("signup")}
+                className={`rounded-lg py-3 text-xs font-extrabold transition ${
+                  mode === "signup" ? "bg-white shadow-sm" : "text-[#75807a]"
+                }`}
+              >
+                Sign up
+              </button>
+            </div>
+
+            <form onSubmit={submit} className="mt-7 space-y-5">
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="mb-2 block text-xs font-extrabold">Full name</span>
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="e.g. Vikram Patel"
+                    autoComplete="name"
+                    className="h-12 w-full rounded-xl border border-[#17221d]/12 bg-white px-4 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-[#a3aaa6] focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/25"
+                  />
+                </label>
+              )}
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-extrabold">
+                  Mobile number
+                </span>
+                <div className="flex h-12 overflow-hidden rounded-xl border border-[#17221d]/12 bg-white transition focus-within:border-[#789524] focus-within:ring-4 focus-within:ring-[#caff52]/25">
+                  <span className="flex items-center border-r border-[#17221d]/10 px-3 text-sm font-bold text-[#68736d]">
+                    +91
+                  </span>
+                  <input
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    placeholder="98765 43210"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    className="min-w-0 flex-1 px-4 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-[#a3aaa6]"
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 flex items-center justify-between text-xs font-extrabold">
+                  Password
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      className="font-bold text-[#69821d]"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </span>
+                <div className="relative">
+                  <input
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 6 characters"
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    className="h-12 w-full rounded-xl border border-[#17221d]/12 bg-white px-4 pr-12 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-[#a3aaa6] focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/25"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-[#7a847f]"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <Icon
+                      name={showPassword ? "eyeOff" : "eye"}
+                      className="h-4 w-4"
+                    />
+                  </button>
+                </div>
+              </label>
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-xl bg-[#ffe7e3] px-4 py-3 text-xs font-bold text-[#9c3d34]"
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#17221d] px-5 py-4 text-sm font-extrabold text-white shadow-lg transition enabled:hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <span className="loader h-4 w-4 rounded-full border-2 border-white/20 border-t-white" />
+                    {mode === "login" ? "Signing in…" : "Creating account…"}
+                  </>
+                ) : (
+                  <>
+                    {mode === "login" ? "Log in to workspace" : "Create technician account"}
+                    <Icon
+                      name="arrow"
+                      className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                    />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={demoLogin}
+                className="w-full rounded-full border border-[#17221d]/15 bg-white py-3 text-xs font-bold text-[#44504a] transition hover:bg-[#ebefe6]"
+              >
+                Instant demo login as Vikram Patel
+              </button>
+            </form>
+
+            <div className="mt-7 flex items-center justify-center gap-2 text-[11px] font-semibold text-[#8a928e]">
+              <Icon name="lock" className="h-3.5 w-3.5" />
+              Secure technician-only workspace
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
