@@ -2,8 +2,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const parsePort = (val: string | undefined): number => {
+  if (!val) return 5000;
+  // Clean quotes, colons, or accidental whitespace
+  const cleaned = val.replace(/['":]+/g, "").trim();
+  const parsed = parseInt(cleaned, 10);
+  return !isNaN(parsed) && parsed > 0 && parsed < 65536 ? parsed : 5000;
+};
+
 export const config = {
-  port: parseInt(process.env.PORT || "5000", 10),
+  port: parsePort(process.env.PORT),
   databaseUrl:
     process.env.DATABASE_URL ||
     "postgresql://neondb_owner:npg_RaxmX3EWiZ2f@ep-billowing-bar-b5f1nxza.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require",

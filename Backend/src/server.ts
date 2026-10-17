@@ -52,7 +52,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // 6. Start Server
-app.listen(config.port, () => {
+app.listen(config.port, "0.0.0.0", () => {
   console.log("=================================================");
   console.log(` 🚀 QuoteFlow AI Express Backend Live on Port ${config.port}`);
   console.log(` 📡 Health Check: http://localhost:${config.port}/health`);
