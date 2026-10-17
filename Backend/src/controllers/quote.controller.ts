@@ -194,6 +194,10 @@ export class QuoteController {
         [quote.id]
       );
 
+      const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
+      const host = (req.headers["x-forwarded-host"] as string) || req.get("host") || "localhost:5000";
+      const invoiceUrl = `${protocol}://${host}/api/quotes/${quote.thread_id}/invoice`;
+
       const html = InvoiceService.generateInvoiceHtml({
         invoiceNumber: `INV-${quote.id.toString().padStart(5, "0")}`,
         invoiceDate: new Date(quote.created_at || Date.now()).toLocaleDateString("en-IN", {
@@ -207,6 +211,7 @@ export class QuoteController {
         subtotal: parseFloat(quote.subtotal),
         gstTotal: parseFloat(quote.gst_total),
         grandTotal: parseFloat(quote.grand_total),
+        invoiceUrl,
         items: itemsRes.rows.map((r: any) => ({
           itemName: r.item_name,
           skuId: r.sku_id,
