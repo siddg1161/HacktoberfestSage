@@ -195,7 +195,7 @@ export class QuoteController {
       );
 
       const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
-      const host = (req.headers["x-forwarded-host"] as string) || req.get("host") || "localhost:5000";
+      const host = (req.headers["x-forwarded-host"] as string) || req.get("host") || "hacktoberfestsage.onrender.com";
       const invoiceUrl = `${protocol}://${host}/api/quotes/${quote.thread_id}/invoice`;
 
       const html = InvoiceService.generateInvoiceHtml({

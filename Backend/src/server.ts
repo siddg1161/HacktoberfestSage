@@ -10,7 +10,7 @@ const app = express();
 // 1. Global Middleware
 app.use(
   cors({
-    origin: "*", // Allow React dev server (e.g. http://localhost:5173 or :3000)
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

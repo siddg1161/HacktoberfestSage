@@ -1017,7 +1017,7 @@ export default function AdminDashboard() {
                   )}
                   {selectedJob.thread_id && (
                     <a
-                      href={`http://localhost:5000/api/quotes/${selectedJob.thread_id}/invoice`}
+                      href={api.getInvoiceUrl(selectedJob.thread_id)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 rounded-full border border-[#17221d]/15 bg-white py-3 text-center text-xs font-extrabold text-[#17221d] transition hover:bg-[#f4f5f0]"

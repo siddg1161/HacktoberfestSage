@@ -949,7 +949,7 @@ export default function TechnicianPortal() {
                         Open Customer Approval Portal <CaptureIcon name="external" className="h-3.5 w-3.5" />
                       </a>
                       <a
-                        href={`http://localhost:5000/api/quotes/${quoteResult.threadId}/invoice`}
+                        href={api.getInvoiceUrl(quoteResult.threadId)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 rounded-full border border-[#15803d]/30 bg-white px-5 py-2.5 text-xs font-extrabold text-[#15803d] hover:bg-[#f0fdf4]"

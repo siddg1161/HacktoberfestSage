@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || "https://hacktoberfestsage.onrender.com";
 
 export interface StartQuotePayload {
   client_name?: string;

@@ -544,6 +544,6 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
             "thread_id": thread_id,
             "status": "QUOTED",
             "pos_issued": created_po_numbers,
-            "client_portal_url": f"https://quoteflow.ai/portal/{thread_id}" # how this url will work - is it portal link for getting their approval of the quotation & then generating invoice??
+            "client_portal_url": f"https://hacktoberfest-sage.vercel.app/portal/{thread_id}" # how this url will work - is it portal link for getting their approval of the quotation & then generating invoice??
         }
     }

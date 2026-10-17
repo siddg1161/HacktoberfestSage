@@ -36,7 +36,8 @@ export class InvoiceService {
       phoneDigits = "91" + phoneDigits;
     }
 
-    const invoiceUrl = data.invoiceUrl || `http://localhost:5000/api/quotes/${data.threadId}/invoice`;
+    const invoiceUrl =
+      data.invoiceUrl || `https://hacktoberfestsage.onrender.com/api/quotes/${data.threadId}/invoice`;
 
     const whatsappMessage =
       `*GST Tax Invoice - ${data.invoiceNumber}*\n\n` +

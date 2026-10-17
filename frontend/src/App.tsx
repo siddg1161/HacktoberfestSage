@@ -167,11 +167,17 @@ function App() {
   const [showInventoryDashboard, setShowInventoryDashboard] = useState(
     () => window.location.hash === "#inventory" || window.location.hash === "#warehouse",
   );
-  const [portalThreadId, setPortalThreadId] = useState<string | null>(() => {
-    return window.location.hash.startsWith("#portal/")
-      ? window.location.hash.replace("#portal/", "")
-      : null;
-  });
+  const getPortalId = () => {
+    if (window.location.hash.startsWith("#portal/")) {
+      return window.location.hash.replace("#portal/", "");
+    }
+    if (window.location.pathname.startsWith("/portal/")) {
+      return window.location.pathname.replace("/portal/", "");
+    }
+    return null;
+  };
+
+  const [portalThreadId, setPortalThreadId] = useState<string | null>(() => getPortalId());
 
   useEffect(() => {
     const syncRoute = () => {
@@ -185,11 +191,7 @@ function App() {
       setShowInventoryDashboard(
         window.location.hash === "#inventory" || window.location.hash === "#warehouse"
       );
-      setPortalThreadId(
-        window.location.hash.startsWith("#portal/")
-          ? window.location.hash.replace("#portal/", "")
-          : null
-      );
+      setPortalThreadId(getPortalId());
     };
     window.addEventListener("hashchange", syncRoute);
     return () => window.removeEventListener("hashchange", syncRoute);
