@@ -225,7 +225,9 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const [adjustment, setAdjustment] = useState(1);
   const [adjustMode, setAdjustMode] = useState<"add" | "remove">("add");
   const [saved, setSaved] = useState(false);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
   const [receivingPo, setReceivingPo] = useState<string | null>(null);
+  const [emailAlertStatus, setEmailAlertStatus] = useState<string | null>(null);
 
   // Load live catalog and purchase orders from backend
   const loadData = async () => {
@@ -278,6 +280,19 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const handleSendStockAlert = async () => {
+    try {
+      setEmailAlertStatus("sending");
+      const res = await api.checkStockAlerts();
+      setEmailAlertStatus("sent");
+      setTimeout(() => setEmailAlertStatus(null), 3500);
+      alert(res.message || "Low-stock alert email sent to store owner!");
+    } catch (err: any) {
+      alert("Error sending alert email: " + (err.message || err));
+      setEmailAlertStatus(null);
+    }
+  };
+
   const categories = ["All categories", ...new Set(items.map((item) => item.category))];
 
   const filteredItems = useMemo(() => {
@@ -300,7 +315,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const lowStock = items.filter((item) => getStatus(item) === "Low stock").length;
   const outOfStock = items.filter((item) => getStatus(item) === "Out of stock").length;
 
-  const updateStock = () => {
+  const updateStock = async () => {
     if (!selectedItem || adjustment < 1) return;
     const nextQuantity =
       adjustMode === "add"
@@ -315,8 +330,29 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
     );
     setSelectedItem({ ...selectedItem, quantity: nextQuantity, lastUpdated: "Just now" });
     setSaved(true);
-    window.setTimeout(() => setSaved(false), 1600);
+
+    try {
+      const res = await api.adjustStock(
+        selectedItem.id,
+        adjustment,
+        adjustMode === "add" ? "add" : "remove"
+      );
+      if (res.alertTriggered) {
+        setSavedNote("⚠️ Alert emailed to owner!");
+      } else {
+        setSavedNote(null);
+      }
+      await loadData();
+    } catch (e) {
+      console.warn("Stock update API note:", e);
+    }
+
+    window.setTimeout(() => {
+      setSaved(false);
+      setSavedNote(null);
+    }, 2800);
   };
+
 
   return (
     <div className="min-h-screen bg-[#f4f5ef] text-[#17221d]">
@@ -437,13 +473,27 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setStockFilter("Low stock")}
-              className="whitespace-nowrap rounded-full bg-[#17221d] px-4 py-2.5 text-xs font-extrabold text-white"
-            >
-              Review low stock
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={emailAlertStatus === "sending"}
+                onClick={handleSendStockAlert}
+                className="whitespace-nowrap rounded-full border border-[#17221d] px-4 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:bg-[#17221d] hover:text-white disabled:opacity-50"
+              >
+                {emailAlertStatus === "sending"
+                  ? "Sending Email…"
+                  : emailAlertStatus === "sent"
+                  ? "✓ Email Alert Sent!"
+                  : "📧 Send Alert to Owner"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockFilter("Low stock")}
+                className="whitespace-nowrap rounded-full bg-[#17221d] px-4 py-2.5 text-xs font-extrabold text-white"
+              >
+                Review low stock
+              </button>
+            </div>
           </section>
         )}
 
@@ -840,7 +890,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                     className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-full bg-[#17221d] px-4 text-xs font-extrabold text-white"
                   >
                     {saved && <Icon name="check" className="h-4 w-4" />}
-                    {saved ? "Stock updated" : "Update stock"}
+                    {saved ? (savedNote || "Stock updated") : "Update stock"}
                   </button>
                 </div>
               </div>
