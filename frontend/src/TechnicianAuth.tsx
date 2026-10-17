@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 
-type AuthIcon = "arrow" | "check" | "eye" | "eyeOff" | "file" | "lock" | "sparkle";
+type AuthIcon = "arrow" | "check" | "eye" | "eyeOff" | "file" | "store" | "lock" | "sparkle";
 
 function Icon({
   name,
@@ -27,6 +27,15 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     lock: (
@@ -93,9 +102,9 @@ export default function TechnicianAuth({
       const displayName =
         name.trim() ||
         (phone.trim() ? `Tech (${phone.trim().slice(-4)})` : "Vikram Patel");
-      localStorage.setItem("parchipay_tech_name", displayName);
+      localStorage.setItem("dukaanpay_tech_name", displayName);
       localStorage.setItem(
-        "parchipay_tech_phone",
+        "dukaanpay_tech_phone",
         phone.trim() ? `+91 ${phone.trim()}` : "+91 98261 44820",
       );
       onSuccess();
@@ -103,8 +112,8 @@ export default function TechnicianAuth({
   };
 
   const demoLogin = () => {
-    localStorage.setItem("parchipay_tech_name", "Vikram Patel");
-    localStorage.setItem("parchipay_tech_phone", "+91 98261 44820");
+    localStorage.setItem("dukaanpay_tech_name", "Vikram Patel");
+    localStorage.setItem("dukaanpay_tech_phone", "+91 98261 44820");
     onSuccess();
   };
 
@@ -120,11 +129,11 @@ export default function TechnicianAuth({
             className="flex items-center gap-2.5"
             aria-label="Back to home"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-              <Icon name="file" className="h-5 w-5" />
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0f1a13] text-[#caff52] shadow-md transition hover:scale-105">
+              <Icon name="store" className="h-5 w-5" />
             </span>
-            <span className="text-[20px] font-extrabold tracking-[-0.04em]">
-              parchi<span className="text-[#5f7a13]">pay</span>
+            <span className="font-display text-[19px] font-black tracking-[-0.05em]">
+              dukaan<span className="text-[#6a841d]">pay</span>
             </span>
           </button>
           <button
@@ -148,10 +157,10 @@ export default function TechnicianAuth({
               <Icon name="sparkle" className="h-3.5 w-3.5 text-[#caff52]" />
               Technician workspace
             </span>
-            <h1 className="mt-7 text-5xl font-extrabold leading-[1.02] tracking-[-0.05em] xl:text-6xl">
+            <h1 className="font-display mt-7 text-5xl font-black leading-[1.02] tracking-[-0.05em] xl:text-6xl">
               Finish the visit.
               <br />
-              Send the parchi.
+              Send the dukaan slip.
               <br />
               <span className="text-[#caff52]">We&apos;ll do the rest.</span>
             </h1>
@@ -184,15 +193,15 @@ export default function TechnicianAuth({
                 Technician access
               </span>
             </div>
-            <p className="hidden text-xs font-extrabold uppercase tracking-[0.18em] text-[#6a841d] lg:block">
+            <p className="font-mono hidden text-[10px] font-bold uppercase tracking-[0.2em] text-[#6a841d] lg:block">
               Technician access
             </p>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
+            <h2 className="font-display mt-4 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
               {mode === "login" ? "Welcome back" : "Join your field team"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#707a75]">
               {mode === "login"
-                ? "Sign in to send a new parchi and voice note."
+                ? "Sign in to send a new dukaan slip and voice note."
                 : "Create your technician account to start submitting jobs."}
             </p>
 

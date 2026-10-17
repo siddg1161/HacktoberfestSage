@@ -1,6 +1,6 @@
-# ParchiPay
+# DukaanPay
 
-React + Vite + Tailwind CSS project for ParchiPay field quotations & payments.
+React + Vite + Tailwind CSS project for DukaanPay field quotations & payments.
 
 ## Development Server
 
@@ -44,5 +44,5 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
 
 - **Temporary Storage**: `localStorage` is strictly a temporary prototype placeholder for mock auth and field job persistence.
 - **Production Target**: The project will be backed by a real SQL database (e.g. PostgreSQL / MySQL / SQLite / Supabase).
-- **Design Constraint**: Keep all entity schemas (technicians, jobs, inventory, parchi uploads) modular and decoupled from UI components so replacing mock storage with real SQL / API endpoints is clean and seamless.
+- **Design Constraint**: Keep all entity schemas (technicians, jobs, inventory, dukaan slip uploads) modular and decoupled from UI components so replacing mock storage with real SQL / API endpoints is clean and seamless.
 

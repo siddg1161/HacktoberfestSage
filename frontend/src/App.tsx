@@ -10,6 +10,7 @@ type IconName =
   | "check"
   | "chevron"
   | "file"
+  | "store"
   | "lock"
   | "menu"
   | "mic"
@@ -40,6 +41,15 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     lock: (
@@ -111,7 +121,7 @@ const steps = [
     number: "01",
     icon: "mic" as IconName,
     title: "Capture the messy bits",
-    body: "Snap a handwritten parchi, add a site photo, or record a quick Hinglish voice note.",
+    body: "Snap a handwritten dukaan slip, add a site photo, or record a quick Hinglish voice note.",
   },
   {
     number: "02",
@@ -129,12 +139,12 @@ const steps = [
 
 function Logo() {
   return (
-    <a href="#" className="flex items-center gap-2.5" aria-label="ParchiPay home">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-        <Icon name="file" className="h-5 w-5" />
+    <a href="#" className="flex items-center gap-2.5" aria-label="DukaanPay home">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0f1a13] text-[#caff52] shadow-md transition hover:scale-105">
+        <Icon name="store" className="h-5 w-5" />
       </span>
-      <span className="text-[20px] font-extrabold tracking-[-0.04em] text-[#17221d]">
-        parchi<span className="text-[#5f7a13]">pay</span>
+      <span className="font-display text-[19px] font-black tracking-[-0.05em] text-[#0f1a13]">
+        dukaan<span className="text-[#6a841d]">pay</span>
       </span>
     </a>
   );
@@ -219,7 +229,7 @@ function App() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f7f7f2] text-[#17221d]">
-      <header className="relative z-50 border-b border-[#17221d]/8">
+      <header className="sticky top-0 z-50 border-b border-[#17221d]/8 bg-[#f7f7f2]/90 backdrop-blur-md transition-all">
         <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
           <Logo />
           <nav className="hidden items-center gap-8 text-sm font-semibold text-[#4d5953] md:flex">
@@ -295,27 +305,32 @@ function App() {
           <div className="hero-grid absolute inset-0 opacity-50" />
           <div className="relative mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pb-28 lg:pt-28">
             <div className="relative z-10 max-w-[640px]">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#17221d]/10 bg-white/80 px-3 py-2 text-xs font-bold shadow-sm backdrop-blur">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#d6ff78]">
-                  <Icon name="sparkle" className="h-3.5 w-3.5" />
+              <div className="animate-slide-up mb-6 inline-flex items-center gap-2.5 rounded-full border border-[#0f1a13]/10 bg-white/90 px-3.5 py-2 text-xs font-bold shadow-sm backdrop-blur">
+                <span className="relative flex h-2 w-2">
+                  <span className="live-dot absolute inline-flex h-full w-full rounded-full bg-[#5f7a13] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#5f7a13]" />
                 </span>
-                Built for India&apos;s field teams
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#d6ff78]">
+                  <Icon name="sparkle" className="h-3 w-3" />
+                </span>
+                Built for India&apos;s field teams &amp; dukaans
               </div>
-              <h1 className="max-w-[620px] text-[48px] font-extrabold leading-[0.98] tracking-[-0.055em] sm:text-[66px] lg:text-[76px]">
-                From parchi to payment.{" "}
+              <h1 className="animate-slide-up delay-100 font-display max-w-[620px] text-[44px] font-black leading-[0.95] tracking-[-0.055em] sm:text-[60px] lg:text-[70px]">
+                From dukaan{" "}
+                <span className="text-[#6a841d]">to payment.</span>{" "}
                 <span className="relative whitespace-nowrap">
                   <span className="relative z-10">In minutes.</span>
-                  <span className="absolute bottom-1 left-0 h-3 w-full -rotate-1 rounded-full bg-[#caff52] sm:h-5" />
+                  <span className="absolute bottom-1 left-0 h-3 w-full -rotate-1 rounded-full bg-[#caff52] sm:h-4" />
                 </span>
               </h1>
-              <p className="mt-7 max-w-[540px] text-lg leading-8 text-[#59645e]">
+              <p className="animate-slide-up delay-200 mt-7 max-w-[540px] text-lg leading-8 text-[#59645e]">
                 Turn handwritten slips, site photos and Hinglish voice notes
                 into polished GST quotations—then get them approved and paid.
               </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="animate-slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
                 <a
                   href="#technician"
-                  className="group inline-flex items-center justify-center gap-3 rounded-full bg-[#17221d] px-7 py-4 text-[15px] font-bold text-white shadow-[0_10px_30px_rgba(23,34,29,0.18)] transition hover:-translate-y-1"
+                  className="shimmer-button group inline-flex items-center justify-center gap-3 rounded-full bg-[#0f1a13] px-7 py-4 text-[15px] font-bold text-white shadow-[0_12px_32px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
                 >
                   Create your first quote
                   <Icon
@@ -325,15 +340,19 @@ function App() {
                 </a>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center gap-3 rounded-full px-6 py-4 text-[15px] font-bold transition hover:bg-white"
+                  onClick={() => {
+                    const el = document.getElementById("features");
+                    el?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="inline-flex items-center justify-center gap-3 rounded-full border border-[#0f1a13]/12 bg-white/80 px-6 py-4 text-[15px] font-bold transition hover:bg-white hover:shadow-md"
                 >
-                  <span className="grid h-8 w-8 place-items-center rounded-full border border-[#17221d]/20 bg-white">
+                  <span className="grid h-8 w-8 place-items-center rounded-full border border-[#0f1a13]/20 bg-white">
                     <Icon name="play" className="ml-0.5 h-3.5 w-3.5" />
                   </span>
                   See it in action
                 </button>
               </div>
-              <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#6e7873]">
+              <div className="animate-fade-in delay-500 mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#6e7873]">
                 {["No card needed", "Works offline", "Your data stays yours"].map(
                   (item) => (
                     <span key={item} className="flex items-center gap-1.5">
@@ -346,9 +365,9 @@ function App() {
             </div>
 
             <div className="relative mx-auto w-full max-w-[660px] lg:ml-auto">
-              <div className="absolute -right-16 -top-14 h-56 w-56 rounded-full bg-[#caff52]/60 blur-3xl" />
-              <div className="absolute -bottom-16 left-5 h-48 w-48 rounded-full bg-[#ffdca8]/80 blur-3xl" />
-              <div className="relative rounded-[30px] border border-[#17221d]/10 bg-[#e9eee5] p-2.5 shadow-[0_34px_80px_rgba(35,48,41,0.18)] sm:p-4">
+              <div className="animate-aurora absolute -right-16 -top-14 h-64 w-64 rounded-full bg-[#caff52]/60 blur-3xl pointer-events-none" />
+              <div className="animate-aurora [animation-delay:4s] absolute -bottom-16 left-5 h-56 w-56 rounded-full bg-[#ffdca8]/80 blur-3xl pointer-events-none" />
+              <div className="relative rounded-[30px] border border-[#17221d]/10 bg-[#e9eee5]/90 p-2.5 shadow-[0_34px_80px_rgba(35,48,41,0.18)] backdrop-blur-sm sm:p-4 transition duration-500 hover:shadow-[0_40px_90px_rgba(35,48,41,0.24)]">
                 <div className="overflow-hidden rounded-[22px] bg-white">
                   <div className="flex items-center justify-between border-b border-[#17221d]/8 px-4 py-3 sm:px-6">
                     <div className="flex items-center gap-2">
@@ -356,36 +375,39 @@ function App() {
                       <span className="h-2.5 w-2.5 rounded-full bg-[#ffd36a]" />
                       <span className="h-2.5 w-2.5 rounded-full bg-[#8fdf86]" />
                     </div>
-                    <div className="rounded-full bg-[#f2f4ef] px-4 py-1.5 text-[10px] font-bold text-[#77807b]">
-                      app.parchipay.in
+                    <div className="flex items-center gap-1.5 rounded-full bg-[#f2f4ef] px-4 py-1.5 text-[10px] font-bold text-[#77807b]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      app.dukaanpay.in
                     </div>
-                    <div className="h-6 w-6 rounded-full bg-[#d6ff78]" />
+                    <div className="h-6 w-6 rounded-full bg-[#d6ff78] flex items-center justify-center text-[10px] font-black">
+                      ✓
+                    </div>
                   </div>
                   <div className="grid min-h-[420px] grid-cols-[54px_1fr] sm:grid-cols-[74px_1fr]">
                     <aside className="flex flex-col items-center gap-5 bg-[#17221d] py-5 text-white/45">
-                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#caff52] text-[#17221d]">
-                        <Icon name="file" className="h-4 w-4" />
+                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#caff52] text-[#17221d] shadow-sm">
+                        <Icon name="store" className="h-4 w-4" />
                       </div>
-                      <Icon name="scan" className="h-5 w-5" />
+                      <Icon name="scan" className="h-5 w-5 hover:text-white transition cursor-pointer" />
                       <Icon name="file" className="h-5 w-5 text-white" />
-                      <Icon name="wallet" className="h-5 w-5" />
+                      <Icon name="wallet" className="h-5 w-5 hover:text-white transition cursor-pointer" />
                     </aside>
                     <div className="bg-[#f8f9f6] p-4 sm:p-6">
                       <div className="mb-5 flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#89918d]">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#89918d]">
                             New quotation
                           </p>
-                          <p className="mt-1 text-sm font-extrabold sm:text-lg">
+                          <p className="mt-1 font-display text-sm font-extrabold sm:text-lg">
                             Sharma Electricals
                           </p>
                         </div>
-                        <span className="rounded-full bg-[#fff0cc] px-3 py-1.5 text-[9px] font-extrabold text-[#8b6510] sm:text-[10px]">
+                        <span className="rounded-full bg-[#fff0cc] px-3 py-1.5 font-mono text-[9px] font-extrabold text-[#8b6510] sm:text-[10px]">
                           DRAFT
                         </span>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
-                        <div className="relative min-h-[150px] overflow-hidden rounded-2xl bg-[#e9dfc8] p-3 shadow-inner">
+                        <div className="scan-laser relative min-h-[150px] overflow-hidden rounded-2xl bg-[#e9dfc8] p-3 shadow-inner">
                           <div className="absolute inset-0 paper-lines opacity-50" />
                           <div className="relative rotate-[-2deg] font-hand text-[12px] leading-6 text-[#555044] sm:text-[13px]">
                             <p className="mb-1 border-b border-[#555044]/30 pb-1 font-bold">
@@ -396,7 +418,7 @@ function App() {
                             <p>switches — 18 pcs</p>
                             <p className="mt-1">+ fitting &amp; labour</p>
                           </div>
-                          <span className="absolute bottom-2 right-2 rounded-lg bg-white/80 px-2 py-1 text-[8px] font-bold">
+                          <span className="absolute bottom-2 right-2 rounded-lg bg-white/85 px-2 py-1 font-mono text-[8px] font-bold backdrop-blur">
                             IMG_2048.jpg
                           </span>
                         </div>
@@ -406,7 +428,7 @@ function App() {
                               <Icon name="sparkle" className="h-3.5 w-3.5" />
                             </span>
                             <div>
-                              <p className="text-[10px] font-extrabold">AI EXTRACTED</p>
+                              <p className="font-mono text-[10px] font-extrabold">AI EXTRACTED</p>
                               <p className="text-[8px] text-[#7d8681]">4 items · 98% confidence</p>
                             </div>
                           </div>
@@ -420,20 +442,20 @@ function App() {
                               className="grid grid-cols-[1fr_auto_auto] gap-2 border-t border-[#17221d]/7 py-2 text-[8px] sm:text-[9px]"
                             >
                               <span className="font-bold">{item}</span>
-                              <span className="text-[#8a928e]">×{qty}</span>
-                              <span className="font-extrabold">{price}</span>
+                              <span className="font-mono text-[#8a928e]">×{qty}</span>
+                              <span className="font-mono font-extrabold">{price}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#17221d] px-4 py-3 text-white sm:px-5 sm:py-4">
+                      <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#17221d] px-4 py-3 text-white sm:px-5 sm:py-4 shadow-md">
                         <div>
-                          <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-white/45">
+                          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-white/50">
                             Quote total · incl. GST
                           </p>
-                          <p className="mt-0.5 text-lg font-extrabold sm:text-2xl">₹41,347</p>
+                          <p className="mt-0.5 font-mono text-lg font-extrabold sm:text-2xl text-[#caff52]">₹41,347</p>
                         </div>
-                        <button className="rounded-full bg-[#caff52] px-3 py-2 text-[9px] font-extrabold text-[#17221d] sm:px-4 sm:text-[10px]">
+                        <button className="shimmer-button rounded-full bg-[#caff52] px-3.5 py-2 text-[9px] font-extrabold text-[#17221d] shadow transition hover:scale-105 sm:px-4 sm:text-[10px]">
                           Send for approval
                         </button>
                       </div>
@@ -441,29 +463,48 @@ function App() {
                   </div>
                 </div>
               </div>
-              <div className="float-card absolute -bottom-8 -left-3 flex items-center gap-3 rounded-2xl border border-[#17221d]/10 bg-white p-3 pr-5 shadow-xl sm:-left-10">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#d6ff78]">
+              <div className="float-card absolute -bottom-8 -left-3 flex items-center gap-3 rounded-2xl border border-[#17221d]/10 bg-white/95 p-3 pr-5 shadow-2xl backdrop-blur-md sm:-left-10">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#d6ff78] shadow-sm">
                   <Icon name="check" className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-[#7d8681]">CLIENT UPDATE</p>
-                  <p className="text-xs font-extrabold sm:text-sm">Quote approved</p>
+                  <p className="font-mono text-[10px] font-bold text-[#7d8681]">CLIENT UPDATE</p>
+                  <p className="font-display text-xs font-extrabold sm:text-sm">Quote approved · ₹41,347</p>
+                </div>
+              </div>
+              <div className="float-delayed absolute -top-5 -right-3 sm:-right-8 flex items-center gap-2.5 rounded-2xl border border-[#17221d]/10 bg-white/95 px-3.5 py-2.5 shadow-xl backdrop-blur-md">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <div>
+                  <p className="font-mono text-[9px] font-bold tracking-wider text-emerald-800 uppercase">Warehouse Check</p>
+                  <p className="text-[11px] font-extrabold text-[#17221d]">Stock verified &amp; ready</p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-y border-[#17221d]/8 bg-white py-7">
-          <div className="mx-auto flex max-w-[1120px] flex-col items-center justify-between gap-6 px-5 text-center sm:px-8 md:flex-row md:text-left">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#89918d]">
-              One flow for every local business
-            </p>
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-[15px] font-extrabold text-[#53605a] sm:gap-x-12">
-              <span>Interior studios</span>
-              <span>Electricians</span>
-              <span>AC services</span>
-              <span>Contractors</span>
+        <section className="border-y border-[#0f1a13]/8 bg-white py-6 overflow-hidden">
+          <div className="flex items-center gap-4 px-4">
+            <span className="shrink-0 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#9ba49f] pr-4 border-r border-[#0f1a13]/10">
+              Trusted by
+            </span>
+            <div className="overflow-hidden flex-1">
+              <div className="marquee-track">
+                {[
+                  "Interior Studios", "Electricians", "AC Services", "Contractors",
+                  "Plumbers", "Painters", "Hardware Shops", "Clinics",
+                  "Interior Studios", "Electricians", "AC Services", "Contractors",
+                  "Plumbers", "Painters", "Hardware Shops", "Clinics",
+                ].map((label, i) => (
+                  <span key={i} className="inline-flex items-center gap-2 text-[14px] font-extrabold text-[#53605a]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#caff52]" />
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -476,16 +517,16 @@ function App() {
               <span className="text-[#6a841d]">paid work.</span>
             </h2>
             <p className="section-copy mx-auto mt-5 max-w-xl">
-              ParchiPay handles the admin between finishing a site visit and
+              DukaanPay handles the admin between finishing a site visit and
               getting money in the bank.
             </p>
           </div>
           <div className="relative mt-16 grid gap-5 md:grid-cols-3">
-            <div className="absolute left-[16%] right-[16%] top-12 hidden border-t border-dashed border-[#17221d]/20 md:block" />
-            {steps.map((step) => (
+            <div className="absolute left-[16%] right-[16%] top-12 hidden border-t border-dashed border-[#0f1a13]/20 md:block" />
+            {steps.map((step, idx) => (
               <article
                 key={step.number}
-                className="group relative rounded-[26px] border border-[#17221d]/9 bg-white p-7 transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(23,34,29,0.08)]"
+                className={`group relative rounded-[26px] border border-[#0f1a13]/9 bg-white p-7 hover-lift animate-slide-up delay-${(idx + 1) * 100}`}
               >
                 <div className="relative z-10 mb-8 flex items-center justify-between">
                   <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#eff2e9] transition group-hover:bg-[#d6ff78]">
@@ -493,7 +534,7 @@ function App() {
                   </span>
                   <span className="text-xs font-extrabold text-[#a4aaa7]">{step.number}</span>
                 </div>
-                <h3 className="text-xl font-extrabold tracking-[-0.03em]">{step.title}</h3>
+                <h3 className="font-display text-xl font-black tracking-[-0.04em]">{step.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-[#69736e]">{step.body}</p>
               </article>
             ))}
@@ -505,12 +546,25 @@ function App() {
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-2xl">
                 <p className="section-label">Built for the real world</p>
-                <h2 className="section-title mt-4">A back office in your pocket.</h2>
+                <h2 className="section-title font-display mt-4">A back office in your pocket.</h2>
               </div>
               <p className="section-copy max-w-md">
-                Capture work your way. ParchiPay turns it into a professional
+                Capture work your way. DukaanPay turns it into a professional
                 workflow your customers can trust.
               </p>
+            </div>
+            {/* Animated stat row */}
+            <div className="mt-8 flex flex-wrap gap-4">
+              {[
+                { value: "₹2.4Cr+", label: "Quotes generated" },
+                { value: "98%", label: "Extraction accuracy" },
+                { value: "<60s", label: "Quote turnaround" },
+              ].map((stat) => (
+                <div key={stat.value} className="animate-slide-up rounded-2xl border border-[#0f1a13]/10 bg-white/60 px-5 py-3 backdrop-blur">
+                  <p className="font-display text-2xl font-black text-[#0f1a13]">{stat.value}</p>
+                  <p className="font-mono mt-0.5 text-[10px] font-bold uppercase tracking-widest text-[#89918d]">{stat.label}</p>
+                </div>
+              ))}
             </div>
             <div className="mt-14 grid gap-5 lg:grid-cols-2">
               <article className="overflow-hidden rounded-[30px] bg-[#17221d] p-7 text-white sm:p-10">
@@ -530,16 +584,16 @@ function App() {
                   </div>
                   <div className="mt-14 rounded-[22px] bg-white/8 p-4">
                     <div className="flex items-center gap-4">
-                      <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#caff52] text-[#17221d]">
+                      <button className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#caff52] text-[#17221d] shadow-md transition hover:scale-105">
                         <Icon name="play" className="ml-0.5 h-4 w-4" />
                       </button>
-                      <div className="flex h-8 flex-1 items-center gap-1">
+                      <div className="flex h-8 flex-1 items-end gap-1">
                         {[10, 17, 25, 13, 30, 22, 14, 27, 18, 10, 22, 31, 19, 12, 24, 15, 8].map(
                           (height, index) => (
                             <span
                               key={index}
-                              className="w-1 flex-1 rounded-full bg-[#caff52]"
-                              style={{ height }}
+                              className="animate-wave w-1 flex-1 rounded-full bg-[#caff52]"
+                              style={{ height, animationDelay: `${(index * 0.07).toFixed(2)}s` }}
                             />
                           ),
                         )}
@@ -634,11 +688,11 @@ function App() {
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#caff52]">
                 Private by architecture
               </p>
-              <h2 className="mt-5 text-4xl font-extrabold leading-[1.04] tracking-[-0.045em] sm:text-6xl">
+              <h2 className="font-display mt-5 text-4xl font-black leading-[1.04] tracking-[-0.045em] sm:text-6xl">
                 Your business stays your business.
               </h2>
               <p className="mt-6 max-w-lg text-lg leading-8 text-white/55">
-                ParchiPay runs on open-weight Gemma models and can process on
+                DukaanPay runs on open-weight Gemma models and can process on
                 your own machine. Sensitive rates, customer lists and photos
                 never need to leave your control.
               </p>
@@ -664,20 +718,23 @@ function App() {
         <section id="demo" className="px-5 py-20 sm:px-8 sm:py-28">
           <div className="relative mx-auto max-w-[1160px] overflow-hidden rounded-[34px] bg-[#caff52] px-6 py-16 text-center sm:px-12 sm:py-20">
             <div className="cta-dots absolute inset-0 opacity-30" />
+            {/* Morphing blobs inside CTA */}
+            <div className="morph-bg pointer-events-none absolute -left-16 -top-16 h-48 w-48 bg-[#a8d93c]/40 blur-3xl" />
+            <div className="morph-bg pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 bg-[#fff0aa]/60 blur-3xl [animation-delay:4s]" />
             <div className="relative mx-auto max-w-3xl">
-              <p className="text-xs font-extrabold uppercase tracking-[0.2em]">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-[#455027]">
                 Your next quote is 60 seconds away
               </p>
-              <h2 className="mt-5 text-4xl font-extrabold leading-[1] tracking-[-0.05em] sm:text-6xl">
+              <h2 className="font-display mt-5 text-4xl font-black leading-[1] tracking-[-0.05em] sm:text-5xl">
                 Ready to turn kaam into cash?
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[#455027] sm:text-lg">
-                Upload a parchi. Record a note. Send a professional quote before
+                Upload a dukaan slip. Record a note. Send a professional quote before
                 you&apos;ve even left the site.
               </p>
               <a
                 href="#technician"
-                className="group mt-8 inline-flex items-center gap-3 rounded-full bg-[#17221d] px-8 py-4 text-sm font-bold text-white shadow-lg transition hover:-translate-y-1"
+                className="shimmer-button group mt-8 inline-flex items-center gap-3 rounded-full bg-[#0f1a13] px-8 py-4 text-sm font-bold text-white shadow-[0_14px_36px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
               >
                 Build a quote for free
                 <Icon
@@ -706,7 +763,7 @@ function App() {
             <a href="#admin">Admin dashboard</a>
             <a href="#">GitHub</a>
           </div>
-          <p className="text-xs text-[#8c9490]">© 2026 ParchiPay</p>
+          <p className="text-xs text-[#8c9490]">© 2026 DukaanPay</p>
         </div>
       </footer>
     </div>

@@ -69,8 +69,10 @@ export interface DbQuote {
   subtotal: string;
   gst_total: string;
   grand_total: string;
-  status: "NEW" | "QUOTED" | "WON" | "INVOICED" | "DRAFT";
+  status: "NEW" | "QUOTED" | "WON" | "INVOICED" | "DRAFT" | string;
   ai_revenue_alert: any;
+  slip_image_url?: string;
+  voice_transcript?: string;
   created_at: string;
   updated_at: string;
 }
@@ -91,12 +93,17 @@ export interface CatalogItem {
 export interface PurchaseOrder {
   id: number;
   thread_id: string;
+  quote_id?: string | number;
+  thread_id?: string;
   po_number: string;
   supplier_name: string;
   items_payload: any;
   urgency: string;
   status: "ORDERED_FROM_WAREHOUSE" | "RECEIVED" | "DRAFTED";
   created_at: string;
+  status: "ORDERED_FROM_WAREHOUSE" | "RECEIVED" | "DRAFTED" | "PENDING_APPROVAL" | string;
+  total_wholesale_cost?: number | string;
+  created_at?: string;
 }
 
 export const api = {
@@ -115,7 +122,7 @@ export const api = {
   // 2. Vendor HITL Approval (Resumes Node 4 -> Neon DB Commit)
   async approveQuote(
     threadId: string,
-    decisions: {
+    decisions?: {
       accept_quote?: boolean;
       accept_addon?: boolean;
       approve_po?: boolean;
@@ -125,7 +132,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/quotes/${threadId}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(decisions),
+      body: JSON.stringify(decisions || { accept_quote: true, approve_po: true }),
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to approve quote");

@@ -142,6 +142,7 @@ type AdminIcon =
   | "chevron"
   | "download"
   | "file"
+  | "store"
   | "money"
   | "search"
   | "users"
@@ -174,6 +175,15 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     money: (
@@ -279,7 +289,7 @@ export default function AdminDashboard() {
             (typeof q.ai_revenue_alert === "string" ? q.ai_revenue_alert : "");
 
           return {
-            id: q.quote_id || `Q-${q.id}`,
+            id: String(q.quote_id || `Q-${q.id}`),
             thread_id: q.thread_id,
             customer: q.client_name,
             phone: q.client_phone || "+91 98261 44820",
@@ -463,7 +473,7 @@ export default function AdminDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `parchipay-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `dukaanpay-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -499,14 +509,14 @@ export default function AdminDashboard() {
               <Icon name="arrow" className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-                <Icon name="file" className="h-5 w-5" />
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0f1a13] text-[#caff52] shadow-md transition hover:scale-105">
+                <Icon name="store" className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
-                  parchi<span className="text-[#5f7a13]">pay</span>
+                <p className="font-display text-[18px] font-black leading-none tracking-[-0.05em]">
+                  dukaan<span className="text-[#6a841d]">pay</span>
                 </p>
-                <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
+                <p className="font-mono mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b938f]">
                   Admin
                 </p>
               </div>
@@ -553,10 +563,10 @@ export default function AdminDashboard() {
       <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#6a841d]">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#6a841d]">
               Operations overview
             </p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
+            <h1 className="font-display mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
               Jobs dashboard
             </h1>
             <p className="mt-2 text-sm text-[#6f7974]">
@@ -623,19 +633,19 @@ export default function AdminDashboard() {
           ].map((metric) => (
             <article
               key={metric.label}
-              className="rounded-[22px] border border-[#17221d]/8 bg-white p-5"
+              className="rounded-[22px] border border-[#17221d]/8 bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(23,34,29,0.06)]"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-bold text-[#7b8580]">{metric.label}</p>
-                  <p className="mt-2 text-2xl font-extrabold tracking-[-0.04em]">
+                  <p className="font-mono text-xs font-bold text-[#7b8580]">{metric.label}</p>
+                  <p className="mt-2 font-display text-2xl font-extrabold tracking-[-0.04em]">
                     {metric.value}
                   </p>
                   <p className="mt-1 text-[10px] font-semibold text-[#9aa19d]">
                     {metric.detail}
                   </p>
                 </div>
-                <span className={`grid h-10 w-10 place-items-center rounded-xl ${metric.color}`}>
+                <span className={`grid h-10 w-10 place-items-center rounded-xl shadow-sm ${metric.color}`}>
                   <Icon name={metric.icon} className="h-5 w-5" />
                 </span>
               </div>
@@ -1024,7 +1034,7 @@ export default function AdminDashboard() {
                     rel="noreferrer"
                     className="block w-full rounded-full border border-[#17221d]/10 bg-white py-2.5 text-center text-[11px] font-bold text-[#62706a] hover:bg-[#f4f5f0]"
                   >
-                    View Original Handwritten Parchi
+                    View Original Handwritten Dukaan Slip
                   </a>
                 )}
               </div>
