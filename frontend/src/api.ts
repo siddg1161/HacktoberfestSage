@@ -63,6 +63,7 @@ export interface QuoteResult {
 
 export interface DbQuote {
   id: number;
+  quote_id?: string | number;
   thread_id: string;
   client_name: string;
   client_phone: string;
@@ -82,8 +83,8 @@ export interface CatalogItem {
   item_name: string;
   category: string;
   unit: string;
-  unit_price: string;
-  gst_rate: string;
+  unit_price: number | string;
+  gst_rate: number | string;
   current_stock: number;
   reorder_threshold: number;
   preferred_supplier: string;
@@ -94,13 +95,10 @@ export interface PurchaseOrder {
   id: number;
   thread_id: string;
   quote_id?: string | number;
-  thread_id?: string;
   po_number: string;
   supplier_name: string;
   items_payload: any;
   urgency: string;
-  status: "ORDERED_FROM_WAREHOUSE" | "RECEIVED" | "DRAFTED";
-  created_at: string;
   status: "ORDERED_FROM_WAREHOUSE" | "RECEIVED" | "DRAFTED" | "PENDING_APPROVAL" | string;
   total_wholesale_cost?: number | string;
   created_at?: string;
