@@ -95,23 +95,23 @@ export class InventoryController {
    */
   static async createCatalogItem(req: Request, res: Response): Promise<void> {
     try {
-      const { sku_id, item_name, category, unit, unit_price, gst_rate, current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days } = req.body;
+      const {
+        sku_id,
+        item_name,
+        category,
+        unit,
+        unit_price,
+        gst_rate,
+        current_stock,
+        reorder_threshold,
+        preferred_supplier,
+        supplier_lead_time_days,
+      } = req.body;
 
       if (!sku_id || !item_name) {
         res.status(400).json({
           success: false,
           error: "sku_id and item_name are required.",
-   * POST /api/inventory/adjust
-   * Adjusts stock quantity for a single SKU. Automatically triggers an email alert
-   * to the owner if stock drops to or below the safety reorder threshold.
-   */
-  static async adjustStock(req: Request, res: Response): Promise<void> {
-    try {
-      const { sku_id, quantity, mode } = req.body;
-      if (!sku_id || typeof quantity !== "number") {
-        res.status(400).json({
-          success: false,
-          error: "Missing required fields: sku_id (string) and quantity (number).",
         });
         return;
       }
@@ -139,6 +139,26 @@ export class InventoryController {
       res.status(500).json({
         success: false,
         error: error.message || "Failed to create catalog item.",
+      });
+    }
+  }
+
+  /**
+   * POST /api/inventory/adjust
+   * Adjusts stock quantity for a single SKU. Automatically triggers an email alert
+   * to the owner if stock drops to or below the safety reorder threshold.
+   */
+  static async adjustStock(req: Request, res: Response): Promise<void> {
+    try {
+      const { sku_id, quantity, mode } = req.body;
+      if (!sku_id || typeof quantity !== "number") {
+        res.status(400).json({
+          success: false,
+          error: "Missing required fields: sku_id (string) and quantity (number).",
+        });
+        return;
+      }
+
       const result = await InventoryService.adjustStock(
         sku_id,
         quantity,
@@ -186,6 +206,11 @@ export class InventoryController {
       res.status(500).json({
         success: false,
         error: error.message || "Failed to delete catalog item.",
+      });
+    }
+  }
+
+  /**
    * POST /api/inventory/alerts/check
    * Runs an inventory scan for items below reorder thresholds and sends
    * an alert email to the store owner.

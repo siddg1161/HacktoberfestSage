@@ -11,7 +11,9 @@ type InventoryItem = {
   quantity: number;
   reorderAt: number;
   unitCost: number;
+  gstRate?: number;
   supplier: string;
+  leadTimeDays?: number;
   location: string;
   lastUpdated: string;
 };
@@ -225,9 +227,26 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const [adjustment, setAdjustment] = useState(1);
   const [adjustMode, setAdjustMode] = useState<"add" | "remove">("add");
   const [saved, setSaved] = useState(false);
-  const [savedNote, setSavedNote] = useState<string | null>(null);
   const [receivingPo, setReceivingPo] = useState<string | null>(null);
-  const [emailAlertStatus, setEmailAlertStatus] = useState<string | null>(null);
+
+  // Business Owner Full Editing States
+  const [editForm, setEditForm] = useState<InventoryItem | null>(null);
+  const [isUpdatingItem, setIsUpdatingItem] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItemForm, setNewItemForm] = useState({
+    sku_id: "",
+    item_name: "",
+    category: "Electrical",
+    unit: "piece",
+    unit_price: 150,
+    gst_rate: 18,
+    current_stock: 20,
+    reorder_threshold: 5,
+    preferred_supplier: "Local Distributor",
+    supplier_lead_time_days: 2,
+  });
+  const [isCreatingItem, setIsCreatingItem] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState("");
 
   // Load live catalog and purchase orders from backend
   const loadData = async () => {
@@ -240,12 +259,14 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
         const liveItems: InventoryItem[] = catList.map((c: CatalogItem) => ({
           id: c.sku_id,
           name: c.item_name,
-          category: c.category,
-          unit: c.unit,
+          category: c.category || "General",
+          unit: c.unit || "piece",
           quantity: Number(c.current_stock) || 0,
           reorderAt: Number(c.reorder_threshold) || 5,
           unitCost: Number(c.unit_price) || 0,
+          gstRate: Number(c.gst_rate) || 18,
           supplier: c.preferred_supplier || "Local Warehouse",
+          leadTimeDays: Number(c.supplier_lead_time_days) || 2,
           location: "Warehouse Bay 1",
           lastUpdated: "Synced with Neon DB",
         }));
@@ -280,19 +301,6 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const handleSendStockAlert = async () => {
-    try {
-      setEmailAlertStatus("sending");
-      const res = await api.checkStockAlerts();
-      setEmailAlertStatus("sent");
-      setTimeout(() => setEmailAlertStatus(null), 3500);
-      alert(res.message || "Low-stock alert email sent to store owner!");
-    } catch (err: any) {
-      alert("Error sending alert email: " + (err.message || err));
-      setEmailAlertStatus(null);
-    }
-  };
-
   const categories = ["All categories", ...new Set(items.map((item) => item.category))];
 
   const filteredItems = useMemo(() => {
@@ -315,7 +323,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const lowStock = items.filter((item) => getStatus(item) === "Low stock").length;
   const outOfStock = items.filter((item) => getStatus(item) === "Out of stock").length;
 
-  const updateStock = async () => {
+  const updateStock = () => {
     if (!selectedItem || adjustment < 1) return;
     const nextQuantity =
       adjustMode === "add"
@@ -329,30 +337,104 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
       ),
     );
     setSelectedItem({ ...selectedItem, quantity: nextQuantity, lastUpdated: "Just now" });
+    if (editForm) setEditForm({ ...editForm, quantity: nextQuantity });
     setSaved(true);
-
-    try {
-      const res = await api.adjustStock(
-        selectedItem.id,
-        adjustment,
-        adjustMode === "add" ? "add" : "remove"
-      );
-      if (res.alertTriggered) {
-        setSavedNote("⚠️ Alert emailed to owner!");
-      } else {
-        setSavedNote(null);
-      }
-      await loadData();
-    } catch (e) {
-      console.warn("Stock update API note:", e);
-    }
-
-    window.setTimeout(() => {
-      setSaved(false);
-      setSavedNote(null);
-    }, 2800);
+    window.setTimeout(() => setSaved(false), 1600);
   };
 
+  const handleSelectItem = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setEditForm({ ...item, gstRate: item.gstRate ?? 18, leadTimeDays: item.leadTimeDays ?? 2 });
+    setAdjustment(1);
+    setSaved(false);
+  };
+
+  const handleSaveItemChanges = async () => {
+    if (!editForm) return;
+    setIsUpdatingItem(true);
+    setActionFeedback("");
+    try {
+      await api.updateCatalogItem(editForm.id, {
+        item_name: editForm.name,
+        category: editForm.category,
+        unit: editForm.unit,
+        unit_price: Number(editForm.unitCost),
+        gst_rate: Number(editForm.gstRate ?? 18),
+        current_stock: Number(editForm.quantity),
+        reorder_threshold: Number(editForm.reorderAt),
+        preferred_supplier: editForm.supplier,
+        supplier_lead_time_days: Number(editForm.leadTimeDays ?? 2),
+      });
+
+      setItems((prev) =>
+        prev.map((it) => (it.id === editForm.id ? { ...editForm, lastUpdated: "Just updated" } : it))
+      );
+      setSelectedItem({ ...editForm, lastUpdated: "Just updated" });
+      setActionFeedback("Item successfully updated in database!");
+      setTimeout(() => setActionFeedback(""), 3500);
+    } catch (err: any) {
+      alert("Failed to update item: " + err.message);
+    } finally {
+      setIsUpdatingItem(false);
+    }
+  };
+
+  const handleDeleteItem = async (skuId: string) => {
+    if (!window.confirm(`Are you sure you want to delete catalog item "${skuId}"?`)) return;
+    try {
+      await api.deleteCatalogItem(skuId);
+      setItems((prev) => prev.filter((it) => it.id !== skuId));
+      setSelectedItem(null);
+      setEditForm(null);
+      setActionFeedback(`Item ${skuId} deleted.`);
+      setTimeout(() => setActionFeedback(""), 3500);
+    } catch (err: any) {
+      alert("Failed to delete item: " + err.message);
+    }
+  };
+
+  const handleCreateNewItem = async () => {
+    if (!newItemForm.sku_id.trim() || !newItemForm.item_name.trim()) {
+      alert("Please provide both SKU ID and Item Name.");
+      return;
+    }
+    setIsCreatingItem(true);
+    try {
+      await api.createCatalogItem({
+        sku_id: newItemForm.sku_id.trim(),
+        item_name: newItemForm.item_name.trim(),
+        category: newItemForm.category,
+        unit: newItemForm.unit,
+        unit_price: Number(newItemForm.unit_price) || 0,
+        gst_rate: Number(newItemForm.gst_rate) || 18,
+        current_stock: Number(newItemForm.current_stock) || 0,
+        reorder_threshold: Number(newItemForm.reorder_threshold) || 5,
+        preferred_supplier: newItemForm.preferred_supplier,
+        supplier_lead_time_days: Number(newItemForm.supplier_lead_time_days) || 2,
+      });
+
+      await loadData();
+      setShowAddModal(false);
+      setNewItemForm({
+        sku_id: "",
+        item_name: "",
+        category: "Electrical",
+        unit: "piece",
+        unit_price: 150,
+        gst_rate: 18,
+        current_stock: 20,
+        reorder_threshold: 5,
+        preferred_supplier: "Local Distributor",
+        supplier_lead_time_days: 2,
+      });
+      setActionFeedback("New catalog item created!");
+      setTimeout(() => setActionFeedback(""), 3500);
+    } catch (err: any) {
+      alert("Failed to create item: " + err.message);
+    } finally {
+      setIsCreatingItem(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f5ef] text-[#17221d]">
@@ -473,37 +555,32 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={emailAlertStatus === "sending"}
-                onClick={handleSendStockAlert}
-                className="whitespace-nowrap rounded-full border border-[#17221d] px-4 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:bg-[#17221d] hover:text-white disabled:opacity-50"
-              >
-                {emailAlertStatus === "sending"
-                  ? "Sending Email…"
-                  : emailAlertStatus === "sent"
-                  ? "✓ Email Alert Sent!"
-                  : "📧 Send Alert to Owner"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStockFilter("Low stock")}
-                className="whitespace-nowrap rounded-full bg-[#17221d] px-4 py-2.5 text-xs font-extrabold text-white"
-              >
-                Review low stock
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setStockFilter("Low stock")}
+              className="whitespace-nowrap rounded-full bg-[#17221d] px-4 py-2.5 text-xs font-extrabold text-white"
+            >
+              Review low stock
+            </button>
           </section>
         )}
 
         <section className="mt-6 overflow-hidden rounded-[26px] border border-[#17221d]/8 bg-white">
           <div className="flex flex-col gap-4 border-b border-[#17221d]/8 p-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <h2 className="text-lg font-extrabold tracking-[-0.025em]">All inventory</h2>
-              <p className="mt-1 text-xs text-[#818a85]">
-                {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} shown
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-[-0.025em]">All inventory</h2>
+                <p className="mt-1 text-xs text-[#818a85]">
+                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} shown
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-full bg-[#17221d] px-4 py-2 text-xs font-extrabold text-[#caff52] shadow transition hover:bg-[#25362e]"
+              >
+                + Add Item
+              </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="relative">
@@ -545,6 +622,12 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
+          {actionFeedback && (
+            <div className="mx-5 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800">
+              ✓ {actionFeedback}
+            </div>
+          )}
+
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-left">
               <thead>
@@ -561,10 +644,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                 {filteredItems.map((item) => (
                   <tr
                     key={item.id}
-                    onClick={() => {
-                      setSelectedItem(item);
-                      setAdjustment(1);
-                    }}
+                    onClick={() => handleSelectItem(item)}
                     className="cursor-pointer border-t border-[#17221d]/7 transition hover:bg-[#f8faf4]"
                   >
                     <td className="px-5 py-4">
@@ -607,10 +687,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  setSelectedItem(item);
-                  setAdjustment(1);
-                }}
+                onClick={() => handleSelectItem(item)}
                 className="w-full p-5 text-left"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -769,133 +846,425 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
         </section>
       </main>
 
-      {selectedItem && (
+      {/* Full Item Editor Side Drawer (Every data can be changed) */}
+      {selectedItem && editForm && (
         <div className="fixed inset-0 z-50 flex justify-end bg-[#17221d]/35 backdrop-blur-[2px]">
           <button
             type="button"
             className="absolute inset-0 cursor-default"
-            onClick={() => setSelectedItem(null)}
+            onClick={() => {
+              setSelectedItem(null);
+              setEditForm(null);
+            }}
             aria-label="Close inventory details"
           />
-          <aside className="relative h-full w-full max-w-[460px] overflow-y-auto bg-white shadow-2xl">
+          <aside className="relative h-full w-full max-w-[480px] overflow-y-auto bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#17221d]/8 bg-white/95 px-6 py-5 backdrop-blur">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#87908b]">
-                  Inventory details
+                  Edit Catalog Item
                 </p>
-                <p className="mt-1 text-lg font-extrabold">{selectedItem.id}</p>
+                <p className="mt-0.5 font-mono text-xs font-bold text-[#17221d]">SKU: {editForm.id}</p>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedItem(null)}
-                className="grid h-10 w-10 place-items-center rounded-full border border-[#17221d]/10"
+                onClick={() => {
+                  setSelectedItem(null);
+                  setEditForm(null);
+                }}
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#17221d]/10 hover:bg-[#f4f5ef]"
                 aria-label="Close details"
               >
                 <Icon name="x" className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="p-6">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#d6ff78]">
-                <Icon name="box" className="h-7 w-7" />
-              </span>
-              <div className="mt-5 flex items-start justify-between gap-4">
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#d6ff78]">
+                  <Icon name="box" className="h-6 w-6 text-[#17221d]" />
+                </span>
+                <StockBadge item={editForm} />
+              </div>
+
+              {/* Form Fields: Every Data Can Be Changed */}
+              <div className="space-y-4">
                 <div>
-                  <h2 className="text-2xl font-extrabold leading-tight tracking-[-0.035em]">
-                    {selectedItem.name}
-                  </h2>
-                  <p className="mt-2 text-sm text-[#76807b]">{selectedItem.category}</p>
+                  <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                    Item Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-semibold outline-none focus:border-[#789524] focus:ring-2 focus:ring-[#caff52]/30"
+                  />
                 </div>
-                <StockBadge item={selectedItem} />
-              </div>
 
-              <div className="mt-7 grid grid-cols-2 gap-3">
-                {[
-                  ["Available", `${selectedItem.quantity} ${selectedItem.unit}s`],
-                  ["Reorder at", `${selectedItem.reorderAt} ${selectedItem.unit}s`],
-                  ["Unit cost", currency(selectedItem.unitCost)],
-                  ["Stock value", currency(selectedItem.quantity * selectedItem.unitCost)],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl bg-[#f4f5f0] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#8b938f]">
-                      {label}
-                    </p>
-                    <p className="mt-2 text-sm font-extrabold">{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-7 rounded-2xl border border-[#17221d]/8 p-4">
-                <div className="flex justify-between border-b border-[#17221d]/7 pb-3">
-                  <span className="text-xs text-[#7b8580]">Supplier</span>
-                  <strong className="text-xs">{selectedItem.supplier}</strong>
-                </div>
-                <div className="flex justify-between border-b border-[#17221d]/7 py-3">
-                  <span className="text-xs text-[#7b8580]">Storage location</span>
-                  <strong className="text-xs">{selectedItem.location}</strong>
-                </div>
-                <div className="flex justify-between pt-3">
-                  <span className="text-xs text-[#7b8580]">Last updated</span>
-                  <strong className="text-xs">{selectedItem.lastUpdated}</strong>
-                </div>
-              </div>
-
-              <div className="mt-7">
-                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#7b8580]">
-                  Adjust stock
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-[#eef0ea] p-1">
-                  <button
-                    type="button"
-                    onClick={() => setAdjustMode("add")}
-                    className={`rounded-lg py-2.5 text-xs font-extrabold ${
-                      adjustMode === "add" ? "bg-white shadow-sm" : "text-[#77817c]"
-                    }`}
-                  >
-                    Stock in
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAdjustMode("remove")}
-                    className={`rounded-lg py-2.5 text-xs font-extrabold ${
-                      adjustMode === "remove" ? "bg-white shadow-sm" : "text-[#77817c]"
-                    }`}
-                  >
-                    Stock out
-                  </button>
-                </div>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex flex-1 items-center justify-between rounded-full border border-[#17221d]/12 p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setAdjustment((value) => Math.max(1, value - 1))}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-[#eef0ea]"
-                      aria-label="Decrease adjustment"
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      Category
+                    </label>
+                    <select
+                      value={editForm.category}
+                      onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold outline-none focus:border-[#789524]"
                     >
-                      <Icon name="minus" className="h-4 w-4" />
-                    </button>
-                    <strong className="text-sm">{adjustment}</strong>
-                    <button
-                      type="button"
-                      onClick={() => setAdjustment((value) => value + 1)}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-[#eef0ea]"
-                      aria-label="Increase adjustment"
-                    >
-                      <Icon name="plus" className="h-4 w-4" />
-                    </button>
+                      <option value="Electrical">Electrical</option>
+                      <option value="Lighting">Lighting</option>
+                      <option value="Security">Security</option>
+                      <option value="AC service">AC service</option>
+                      <option value="Plumbing">Plumbing</option>
+                      <option value="Hardware">Hardware</option>
+                      <option value="General">General</option>
+                    </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={updateStock}
-                    className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-full bg-[#17221d] px-4 text-xs font-extrabold text-white"
-                  >
-                    {saved && <Icon name="check" className="h-4 w-4" />}
-                    {saved ? (savedNote || "Stock updated") : "Update stock"}
-                  </button>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      Unit
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.unit}
+                      onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                      placeholder="e.g. piece, coil, metre"
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold outline-none focus:border-[#789524]"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      Selling Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.unitCost}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, unitCost: parseFloat(e.target.value) || 0 })
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-extrabold outline-none focus:border-[#789524]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      GST Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.gstRate ?? 18}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, gstRate: parseFloat(e.target.value) || 0 })
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-extrabold outline-none focus:border-[#789524]"
+                    />
+                  </div>
+                </div>
+
+                {/* Stock & Reorder Threshold with Live +/- Stepper */}
+                <div className="rounded-2xl border border-[#17221d]/10 bg-[#fafbf8] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold text-[#17221d]">Available Warehouse Stock</p>
+                      <p className="text-[10px] text-[#7d8681]">Units currently physically on shelf</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditForm({ ...editForm, quantity: Math.max(0, editForm.quantity - 1) })
+                        }
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ea] text-xs font-bold hover:bg-[#e0e3dc]"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.quantity}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, quantity: Math.max(0, parseInt(e.target.value) || 0) })
+                        }
+                        className="h-8 w-16 rounded-lg border border-[#17221d]/15 bg-white text-center text-sm font-black outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditForm({ ...editForm, quantity: editForm.quantity + 1 })
+                        }
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ea] text-xs font-bold hover:bg-[#e0e3dc]"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-[#17221d]/7 pt-3">
+                    <div>
+                      <p className="text-xs font-extrabold text-[#17221d]">Reorder Safety Threshold</p>
+                      <p className="text-[10px] text-[#7d8681]">Alerts when remaining stock drops below this</p>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.reorderAt}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, reorderAt: Math.max(0, parseInt(e.target.value) || 0) })
+                      }
+                      className="h-8 w-16 rounded-lg border border-[#17221d]/15 bg-white text-center text-sm font-black outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      Preferred Supplier
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.supplier}
+                      onChange={(e) => setEditForm({ ...editForm, supplier: e.target.value })}
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                      Lead Time (Days)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editForm.leadTimeDays ?? 2}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, leadTimeDays: parseInt(e.target.value) || 1 })
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
+                    Storage Location / Bin
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-4 space-y-3">
+                <button
+                  type="button"
+                  onClick={handleSaveItemChanges}
+                  disabled={isUpdatingItem}
+                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[#17221d] px-4 text-xs font-extrabold text-[#caff52] shadow-lg transition hover:bg-[#25362e] disabled:opacity-50"
+                >
+                  <Icon name="check" className="h-4 w-4" />
+                  {isUpdatingItem ? "Saving changes to database…" : "Save Changes to Database"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteItem(selectedItem.id)}
+                  className="flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-extrabold text-rose-700 hover:bg-rose-100 transition"
+                >
+                  <Icon name="x" className="h-3.5 w-3.5" />
+                  Delete Item from Catalog
+                </button>
               </div>
             </div>
           </aside>
+        </div>
+      )}
+
+      {/* Add New Catalog Item Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17221d]/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-[#17221d]/10 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#17221d]/8 pb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#17221d]">Add New Catalog Item</h3>
+                <p className="text-xs text-[#808a85]">Expands the inventory database for autonomous quoting</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-[#17221d]/10 hover:bg-[#f4f5ef]"
+              >
+                <Icon name="x" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">SKU ID *</label>
+                  <input
+                    type="text"
+                    value={newItemForm.sku_id}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, sku_id: e.target.value })}
+                    placeholder="e.g. SKU-WIRE-05"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Item Name *</label>
+                  <input
+                    type="text"
+                    value={newItemForm.item_name}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
+                    placeholder="e.g. 4.0 sq mm Copper Cable"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Category</label>
+                  <select
+                    value={newItemForm.category}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, category: e.target.value })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                  >
+                    <option value="Electrical">Electrical</option>
+                    <option value="Lighting">Lighting</option>
+                    <option value="Security">Security</option>
+                    <option value="AC service">AC service</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Unit</label>
+                  <input
+                    type="text"
+                    value={newItemForm.unit}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, unit: e.target.value })}
+                    placeholder="piece, coil, metre"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Selling Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newItemForm.unit_price}
+                    onChange={(e) =>
+                      setNewItemForm({ ...newItemForm, unit_price: parseFloat(e.target.value) || 0 })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-extrabold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">GST Rate (%)</label>
+                  <input
+                    type="number"
+                    value={newItemForm.gst_rate}
+                    onChange={(e) =>
+                      setNewItemForm({ ...newItemForm, gst_rate: parseFloat(e.target.value) || 0 })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-extrabold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Initial Stock Qty</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newItemForm.current_stock}
+                    onChange={(e) =>
+                      setNewItemForm({ ...newItemForm, current_stock: parseInt(e.target.value) || 0 })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Reorder Threshold</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newItemForm.reorder_threshold}
+                    onChange={(e) =>
+                      setNewItemForm({
+                        ...newItemForm,
+                        reorder_threshold: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Preferred Supplier</label>
+                  <input
+                    type="text"
+                    value={newItemForm.preferred_supplier}
+                    onChange={(e) =>
+                      setNewItemForm({ ...newItemForm, preferred_supplier: e.target.value })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Lead Time (Days)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newItemForm.supplier_lead_time_days}
+                    onChange={(e) =>
+                      setNewItemForm({
+                        ...newItemForm,
+                        supplier_lead_time_days: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3 border-t border-[#17221d]/8 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="rounded-full border border-[#17221d]/15 px-5 py-2.5 text-xs font-extrabold text-[#17221d] hover:bg-[#f4f5ef]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isCreatingItem}
+                onClick={handleCreateNewItem}
+                className="rounded-full bg-[#17221d] px-6 py-2.5 text-xs font-extrabold text-[#caff52] hover:bg-[#25362e] disabled:opacity-50"
+              >
+                {isCreatingItem ? "Creating..." : "Create Catalog Item"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

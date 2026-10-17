@@ -323,8 +323,11 @@ export default function AdminDashboard() {
         const rawItems = res.line_items || res.items || [];
 
         const lineItems = rawItems.map((li: any) => ({
+          sku_id: li.sku_id || "CUSTOM",
           name: li.item_name || li.name || "Item",
           quantity: Number(li.requested_qty ?? li.quantity) || 1,
+          unit_price: Number(li.unit_price) || Math.round(((Number(li.line_total ?? li.price) || 0) / 1.18 / (Number(li.quantity) || 1)) * 100) / 100,
+          gst_rate: Number(li.gst_rate) || 18,
           price: Number(li.line_total ?? li.price) || 0,
           stock_tier: li.stock_tier,
         }));
@@ -349,6 +352,46 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.warn("Could not load live quote detail:", err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // Admin inline item quantity adjustment
+  const handleAdminUpdateItemQty = (idx: number, delta: number) => {
+    if (!selectedJob || !selectedJob.items) return;
+    const items = [...selectedJob.items];
+    const target = { ...items[idx] };
+    target.quantity = Math.max(1, target.quantity + delta);
+    const unitPrice = (target as any).unit_price || (target.price / (target.quantity - delta || 1));
+    target.price = Math.round(target.quantity * unitPrice * 1.18 * 100) / 100;
+    items[idx] = target;
+
+    const newAmount = items.reduce((sum, it) => sum + it.price, 0);
+    setSelectedJob({
+      ...selectedJob,
+      items,
+      amount: newAmount,
+    });
+  };
+
+  // Admin save quote edits to LangGraph state and Neon DB
+  const handleAdminSaveQuoteEdits = async () => {
+    if (!selectedJob || !selectedJob.thread_id || !selectedJob.items) return;
+    try {
+      setLoadingDetail(true);
+      const payloadItems = selectedJob.items.map((it: any) => ({
+        sku_id: it.sku_id || "CUSTOM",
+        item_name: it.name,
+        quantity: it.quantity,
+        unit_price: it.unit_price || Math.round((it.price / 1.18 / it.quantity) * 100) / 100,
+        gst_rate: it.gst_rate || 18,
+      }));
+      await api.editQuote(selectedJob.thread_id, payloadItems);
+      setActionSuccess("Quote updated in state and database!");
+      await loadQuotes();
+    } catch (err: any) {
+      alert("Error saving edits: " + err.message);
     } finally {
       setLoadingDetail(false);
     }
@@ -856,13 +899,42 @@ export default function AdminDashboard() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-[#858d89]">×{item.quantity}</p>
+                        <div className="flex items-center gap-1.5 rounded-lg border border-[#17221d]/10 bg-white px-1.5 py-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleAdminUpdateItemQty(idx, -1)}
+                            className="h-5 w-5 rounded bg-[#f4f5ef] text-[10px] font-bold hover:bg-[#e0e3dc]"
+                            title="Decrease qty"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs font-bold px-1">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminUpdateItemQty(idx, 1)}
+                            className="h-5 w-5 rounded bg-[#f4f5ef] text-[10px] font-bold hover:bg-[#e0e3dc]"
+                            title="Increase qty"
+                          >
+                            +
+                          </button>
+                        </div>
                         <p className="text-xs font-extrabold">{currency(item.price)}</p>
                       </div>
                     );
                   })}
                   <div className="flex items-center justify-between bg-[#17221d] px-4 py-4 text-white">
-                    <p className="text-xs font-bold text-white/60">Grand Total (incl. GST)</p>
+                    <div>
+                      <p className="text-xs font-bold text-white/60">Grand Total (incl. GST)</p>
+                      {selectedJob.thread_id && (
+                        <button
+                          type="button"
+                          onClick={handleAdminSaveQuoteEdits}
+                          className="mt-1 text-[10px] font-extrabold text-[#caff52] underline hover:text-white"
+                        >
+                          💾 Save item edits to database
+                        </button>
+                      )}
+                    </div>
                     <p className="text-lg font-extrabold">{currency(selectedJob.amount)}</p>
                   </div>
                 </div>

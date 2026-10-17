@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { api, QuoteResult } from "./api";
+import { api, QuoteResult, CatalogItem, ExtractedItem } from "./api";
 
 type CaptureIcon =
   | "arrow"
@@ -13,7 +13,11 @@ type CaptureIcon =
   | "x"
   | "sparkle"
   | "alert"
-  | "external";
+  | "external"
+  | "plus"
+  | "minus"
+  | "trash"
+  | "edit";
 
 function CaptureIcon({
   name,
@@ -73,6 +77,14 @@ function CaptureIcon({
       </>
     ),
     x: <path d="m6 6 12 12M18 6 6 18" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    minus: <path d="M5 12h14" />,
+    trash: (
+      <>
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      </>
+    ),
+    edit: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
   };
 
   return (
@@ -128,6 +140,17 @@ export default function TechnicianPortal() {
   const [approvalStatus, setApprovalStatus] = useState<"idle" | "approving" | "approved">("idle");
   const [dispatchedPortalUrl, setDispatchedPortalUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Human Edit States
+  const [catalogList, setCatalogList] = useState<CatalogItem[]>([]);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editSuccessMsg, setEditSuccessMsg] = useState("");
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [selectedCatalogSku, setSelectedCatalogSku] = useState("");
+  const [customItemName, setCustomItemName] = useState("");
+  const [customQty, setCustomQty] = useState(1);
+  const [customPrice, setCustomPrice] = useState(100);
+  const [customUnit, setCustomUnit] = useState("piece");
 
   const [techName] = useState(() => {
     return localStorage.getItem("parchipay_tech_name") || "Vikram Patel";
@@ -339,12 +362,173 @@ export default function TechnicianPortal() {
         accept_quote: true,
         accept_addon: true,
         approve_po: true,
+        edited_line_items: quoteResult.extractedItems,
       });
       setDispatchedPortalUrl(res.clientPortalUrl);
       setApprovalStatus("approved");
     } catch (err: any) {
       alert("Approval error: " + err.message);
       setApprovalStatus("idle");
+    }
+  };
+
+  useEffect(() => {
+    api.getCatalog()
+      .then((cat) => {
+        if (Array.isArray(cat)) setCatalogList(cat);
+        else if ((cat as any)?.data) setCatalogList((cat as any).data);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Update item quantity directly from row and recalculate live
+  const handleUpdateQty = (index: number, newQty: number) => {
+    if (!quoteResult) return;
+    const qty = Math.max(1, newQty);
+    const updated = [...quoteResult.extractedItems];
+    const target = { ...updated[index] };
+    target.quantity = qty;
+
+    const lineSub = Math.round(qty * Number(target.unit_price) * 100) / 100;
+    const gstRate = Number(target.gst_rate) || 18.0;
+    target.gst_amount = Math.round(lineSub * (gstRate / 100) * 100) / 100;
+    target.line_total = Math.round((lineSub + target.gst_amount) * 100) / 100;
+
+    // Real-time 3-tier stock badge recalculation
+    const curStock = (target as any).current_stock ?? 10;
+    const reorderThresh = (target as any).reorder_threshold ?? 5;
+    if (qty > curStock) {
+      target.stock_tier = "INSTANT_DEFICIT";
+    } else if (curStock - qty < reorderThresh) {
+      target.stock_tier = "THRESHOLD_WARNING";
+    } else {
+      target.stock_tier = "HEALTHY";
+    }
+
+    updated[index] = target;
+
+    const subtotal = Math.round(updated.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updated.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updated,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  // Update item rate directly from row and recalculate live
+  const handleUpdatePrice = (index: number, newPrice: number) => {
+    if (!quoteResult) return;
+    const price = Math.max(0, newPrice);
+    const updated = [...quoteResult.extractedItems];
+    const target = { ...updated[index] };
+    target.unit_price = price;
+
+    const lineSub = Math.round(target.quantity * price * 100) / 100;
+    const gstRate = Number(target.gst_rate) || 18.0;
+    target.gst_amount = Math.round(lineSub * (gstRate / 100) * 100) / 100;
+    target.line_total = Math.round((lineSub + target.gst_amount) * 100) / 100;
+
+    updated[index] = target;
+
+    const subtotal = Math.round(updated.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updated.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updated,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  // Remove an item row
+  const handleRemoveItem = (index: number) => {
+    if (!quoteResult) return;
+    const updated = quoteResult.extractedItems.filter((_, i) => i !== index);
+    const subtotal = Math.round(updated.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updated.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updated,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  // Add catalog item or custom item to quotation
+  const handleAddCatalogItem = () => {
+    if (!quoteResult) return;
+    const catItem = catalogList.find((c) => c.sku_id === selectedCatalogSku);
+    if (!catItem && !customItemName) return;
+
+    const qty = Math.max(1, customQty);
+    const price = catItem ? Number(catItem.unit_price) : customPrice;
+    const gstRate = catItem ? Number(catItem.gst_rate) : 18.0;
+    const lineSub = Math.round(qty * price * 100) / 100;
+    const gstAmt = Math.round(lineSub * (gstRate / 100) * 100) / 100;
+    const lineTot = Math.round((lineSub + gstAmt) * 100) / 100;
+
+    const curStock = catItem ? Number(catItem.current_stock) : 10;
+    const reorderThresh = catItem ? Number(catItem.reorder_threshold) : 5;
+    let tier: "HEALTHY" | "THRESHOLD_WARNING" | "INSTANT_DEFICIT" = "HEALTHY";
+    if (qty > curStock) tier = "INSTANT_DEFICIT";
+    else if (curStock - qty < reorderThresh) tier = "THRESHOLD_WARNING";
+
+    const newItem: ExtractedItem = {
+      sku_id: catItem ? catItem.sku_id : `CUSTOM-${Date.now().toString().slice(-4)}`,
+      item_name: catItem ? catItem.item_name : customItemName,
+      quantity: qty,
+      unit: catItem ? catItem.unit : customUnit,
+      unit_price: price,
+      gst_rate: gstRate,
+      gst_amount: gstAmt,
+      line_total: lineTot,
+      stock_tier: tier,
+      is_ai_suggested: false,
+    };
+
+    const updated = [...quoteResult.extractedItems, newItem];
+    const subtotal = Math.round(updated.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updated.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updated,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+
+    setShowAddItem(false);
+    setSelectedCatalogSku("");
+    setCustomItemName("");
+    setCustomQty(1);
+  };
+
+  // Save edits to LangGraph state checkpoint & Neon DB without approving yet
+  const handleSaveDraftEdits = async () => {
+    if (!quoteResult) return;
+    setIsSavingEdit(true);
+    setEditSuccessMsg("");
+    try {
+      await api.editQuote(quoteResult.threadId, quoteResult.extractedItems);
+      setEditSuccessMsg("Quotation edits saved to state & database!");
+      setTimeout(() => setEditSuccessMsg(""), 3500);
+    } catch (err: any) {
+      alert("Save edit error: " + err.message);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -472,17 +656,117 @@ export default function TechnicianPortal() {
                 </div>
               </div>
 
+              {/* Human Edit Info Banner */}
+              <div className="mt-5 flex items-center justify-between rounded-xl bg-[#f7f8f4] border border-[#17221d]/10 px-4 py-2.5">
+                <div className="flex items-center gap-2 text-xs text-[#55615b]">
+                  <CaptureIcon name="edit" className="h-4 w-4 text-[#6a841d]" />
+                  <span>
+                    <strong>Human Edit Mode:</strong> Click or edit quantities and rates below. Stock badges, deficits, and GST calculate in real-time.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddItem(!showAddItem)}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#17221d] px-3 py-1.5 text-xs font-bold text-[#caff52] hover:bg-[#25362e] transition"
+                >
+                  <CaptureIcon name="plus" className="h-3.5 w-3.5" />
+                  {showAddItem ? "Cancel" : "Add Line Item"}
+                </button>
+              </div>
+
+              {/* Add Custom / Catalog Item Form */}
+              {showAddItem && (
+                <div className="mt-4 rounded-2xl border border-[#caff52]/60 bg-[#f7fce9] p-4 text-xs">
+                  <p className="font-extrabold text-[#3a4d0e]">Add New Line Item to Quotation</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#627725] uppercase">From Catalog</label>
+                      <select
+                        value={selectedCatalogSku}
+                        onChange={(e) => {
+                          const sku = e.target.value;
+                          setSelectedCatalogSku(sku);
+                          const it = catalogList.find((c) => c.sku_id === sku);
+                          if (it) {
+                            setCustomItemName(it.item_name);
+                            setCustomPrice(Number(it.unit_price) || 0);
+                            setCustomUnit(it.unit || "piece");
+                          }
+                        }}
+                        className="mt-1 h-9 w-full rounded-lg border border-[#17221d]/15 bg-white px-2 font-medium"
+                      >
+                        <option value="">-- Choose or type custom below --</option>
+                        {catalogList.map((c) => (
+                          <option key={c.sku_id} value={c.sku_id}>
+                            {c.item_name} (₹{c.unit_price} / {c.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#627725] uppercase">Item Name</label>
+                      <input
+                        type="text"
+                        value={customItemName}
+                        onChange={(e) => setCustomItemName(e.target.value)}
+                        placeholder="e.g. 10A Switch or Labor"
+                        className="mt-1 h-9 w-full rounded-lg border border-[#17221d]/15 bg-white px-2 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#627725] uppercase">Quantity & Unit</label>
+                      <div className="mt-1 flex gap-1">
+                        <input
+                          type="number"
+                          min="1"
+                          value={customQty}
+                          onChange={(e) => setCustomQty(parseInt(e.target.value) || 1)}
+                          className="h-9 w-16 rounded-lg border border-[#17221d]/15 bg-white px-2 font-bold text-center"
+                        />
+                        <input
+                          type="text"
+                          value={customUnit}
+                          onChange={(e) => setCustomUnit(e.target.value)}
+                          placeholder="unit"
+                          className="h-9 w-20 rounded-lg border border-[#17221d]/15 bg-white px-2 text-center"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-[#627725] uppercase">Rate (₹)</label>
+                      <div className="mt-1 flex gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={customPrice}
+                          onChange={(e) => setCustomPrice(parseFloat(e.target.value) || 0)}
+                          className="h-9 w-full rounded-lg border border-[#17221d]/15 bg-white px-2 font-bold text-right"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCatalogItem}
+                          className="h-9 rounded-lg bg-[#536d13] px-3 font-extrabold text-white hover:bg-[#3f540d]"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 3-Tier Inventory Quoted Items Table */}
-              <div className="mt-6 overflow-x-auto">
+              <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#17221d]/10 text-[11px] font-extrabold uppercase text-[#737d78]">
                       <th className="pb-3">Item Name</th>
-                      <th className="pb-3 text-center">Qty</th>
-                      <th className="pb-3 text-right">Rate</th>
+                      <th className="pb-3 text-center">Qty (Click to Edit)</th>
+                      <th className="pb-3 text-right">Rate (₹)</th>
                       <th className="pb-3 text-right">GST</th>
                       <th className="pb-3 text-right">Total</th>
-                      <th className="pb-3 text-center">Stock Status</th>
+                      <th className="pb-3 text-center">3-Tier Stock Status</th>
+                      <th className="pb-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#17221d]/6">
@@ -495,23 +779,69 @@ export default function TechnicianPortal() {
                           : "bg-[#fef2f2] text-[#b91c1c]";
 
                       return (
-                        <tr key={idx} className="hover:bg-[#fbfcf8]">
-                          <td className="py-3.5 font-semibold text-[#17221d]">
+                        <tr key={idx} className="hover:bg-[#fbfcf8] transition-colors">
+                          <td className="py-3 font-semibold text-[#17221d]">
                             {item.item_name}
                             <span className="block text-[11px] font-normal text-[#757f7a]">SKU: {item.sku_id}</span>
                           </td>
-                          <td className="py-3.5 text-center font-bold">
-                            {item.quantity} {item.unit}
+                          <td className="py-3 text-center">
+                            <div className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#17221d]/10 bg-white p-1 shadow-sm">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateQty(idx, item.quantity - 1)}
+                                className="grid h-6 w-6 place-items-center rounded bg-[#f4f5ef] text-xs font-bold text-[#17221d] hover:bg-[#e6e8e0]"
+                                title="Decrease"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => handleUpdateQty(idx, parseInt(e.target.value) || 1)}
+                                className="w-12 text-center text-xs font-black text-[#17221d] outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateQty(idx, item.quantity + 1)}
+                                className="grid h-6 w-6 place-items-center rounded bg-[#f4f5ef] text-xs font-bold text-[#17221d] hover:bg-[#e6e8e0]"
+                                title="Increase"
+                              >
+                                +
+                              </button>
+                              <span className="pr-1 text-[10px] text-[#78827d]">{item.unit}</span>
+                            </div>
                           </td>
-                          <td className="py-3.5 text-right font-medium">₹{Number(item.unit_price).toFixed(2)}</td>
-                          <td className="py-3.5 text-right text-xs text-[#737d78]">
+                          <td className="py-3 text-right">
+                            <div className="inline-flex items-center gap-1 rounded-lg border border-[#17221d]/10 bg-white px-2 py-1 shadow-sm">
+                              <span className="text-[10px] text-[#848d88]">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.unit_price}
+                                onChange={(e) => handleUpdatePrice(idx, parseFloat(e.target.value) || 0)}
+                                className="w-16 text-right text-xs font-bold text-[#17221d] outline-none"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-3 text-right text-xs text-[#737d78]">
                             ₹{Number(item.gst_amount).toFixed(2)} ({item.gst_rate}%)
                           </td>
-                          <td className="py-3.5 text-right font-bold text-[#17221d]">₹{Number(item.line_total).toFixed(2)}</td>
-                          <td className="py-3.5 text-center">
+                          <td className="py-3 text-right font-black text-[#17221d]">₹{Number(item.line_total).toFixed(2)}</td>
+                          <td className="py-3 text-center">
                             <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${tierBadge}`}>
                               {item.stock_tier.replace("_", " ")}
                             </span>
+                          </td>
+                          <td className="py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(idx)}
+                              className="grid h-7 w-7 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 transition"
+                              title="Delete row"
+                            >
+                              <CaptureIcon name="trash" className="h-4 w-4" />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -632,6 +962,11 @@ export default function TechnicianPortal() {
                       <p className="text-xs text-[#69736e]">
                         Approves quote, AI companion labor charges, and drafts warehouse POs.
                       </p>
+                      {editSuccessMsg && (
+                        <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 inline-block">
+                          ✓ {editSuccessMsg}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <button
@@ -640,6 +975,14 @@ export default function TechnicianPortal() {
                         className="rounded-full border border-[#17221d]/15 px-5 py-3 text-xs font-extrabold text-[#17221d] hover:bg-[#f4f5ef]"
                       >
                         Discard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveDraftEdits}
+                        disabled={isSavingEdit}
+                        className="rounded-full border border-[#17221d]/20 bg-white px-5 py-3 text-xs font-extrabold text-[#17221d] hover:bg-[#f0f2eb] transition disabled:opacity-50"
+                      >
+                        {isSavingEdit ? "Saving..." : "💾 Save Draft Edits"}
                       </button>
                       <button
                         type="button"

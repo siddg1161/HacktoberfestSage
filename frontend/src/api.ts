@@ -63,7 +63,6 @@ export interface QuoteResult {
 
 export interface DbQuote {
   id: number;
-  quote_id?: string | number;
   thread_id: string;
   client_name: string;
   client_phone: string;
@@ -72,7 +71,6 @@ export interface DbQuote {
   grand_total: string;
   status: "NEW" | "QUOTED" | "WON" | "INVOICED" | "DRAFT";
   ai_revenue_alert: any;
-  slip_image_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -92,14 +90,12 @@ export interface CatalogItem {
 
 export interface PurchaseOrder {
   id: number;
-  quote_id?: string | number;
   thread_id: string;
   po_number: string;
   supplier_name: string;
   items_payload: any;
   urgency: string;
   status: "ORDERED_FROM_WAREHOUSE" | "RECEIVED" | "DRAFTED";
-  total_wholesale_cost?: number | string;
   created_at: string;
 }
 
@@ -124,9 +120,8 @@ export const api = {
       accept_addon?: boolean;
       approve_po?: boolean;
       edited_line_items?: any[];
-    } = {}
+    }
   ): Promise<{ threadId: string; status: string; clientPortalUrl: string; grandTotal: number }> {
-
     const res = await fetch(`${API_BASE}/api/quotes/${threadId}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,6 +129,21 @@ export const api = {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to approve quote");
+    return json.data;
+  },
+
+  // 2b. Vendor Human Edit (Updates quantities/rates/items in state and DB)
+  async editQuote(
+    threadId: string,
+    editedLineItems: any[]
+  ): Promise<{ threadId: string; subtotal: number; gstTotal: number; grandTotal: number; extractedItems: ExtractedItem[] }> {
+    const res = await fetch(`${API_BASE}/api/quotes/${threadId}/edit`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ edited_line_items: editedLineItems }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to update quote");
     return json.data;
   },
 
@@ -178,6 +188,39 @@ export const api = {
     if (!json.success) throw new Error(json.error || "Failed to receive PO");
   },
 
+  // 7b. Update Catalog Item (Every data can be changed)
+  async updateCatalogItem(skuId: string, itemData: Partial<CatalogItem>): Promise<CatalogItem> {
+    const res = await fetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(itemData),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to update item");
+    return json.data;
+  },
+
+  // 7c. Create New Catalog Item
+  async createCatalogItem(itemData: Partial<CatalogItem> & { sku_id: string; item_name: string }): Promise<CatalogItem> {
+    const res = await fetch(`${API_BASE}/api/inventory/catalog`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(itemData),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to create item");
+    return json.data;
+  },
+
+  // 7d. Delete Catalog Item
+  async deleteCatalogItem(skuId: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to delete item");
+  },
+
   // 8. Public Customer Portal Preview
   async getPortalQuote(threadId: string): Promise<any> {
     const res = await fetch(`${API_BASE}/api/portal/${threadId}`);
@@ -200,45 +243,4 @@ export const api = {
   getInvoiceUrl(threadId: string): string {
     return `${API_BASE}/api/quotes/${threadId}/invoice`;
   },
-
-  // 11. Adjust Stock (Triggers Owner Email Alert if below threshold)
-  async adjustStock(
-    skuId: string,
-    quantity: number,
-    mode: "add" | "remove" | "set" = "remove"
-  ): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/inventory/adjust`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sku_id: skuId, quantity, mode }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Failed to adjust stock");
-    return json;
-  },
-
-  // 12. Check Low-Stock Alerts and Email Owner
-  async checkStockAlerts(ownerEmail?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/inventory/alerts/check`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ownerEmail }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Failed to check stock alerts");
-    return json;
-  },
-
-  // 13. Send Test Stock Alert Email via Brevo
-  async sendTestStockAlert(ownerEmail?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/inventory/alerts/test`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ownerEmail }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Failed to send test alert");
-    return json;
-  },
 };
-
