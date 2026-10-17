@@ -199,10 +199,29 @@ export default function CustomerPortal({ threadId }: { threadId: string }) {
                     href={api.getInvoiceUrl(threadId)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-[#15803d] px-6 py-3 text-xs font-extrabold text-white hover:bg-[#166534]"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#0284c7] px-6 py-3 text-xs font-extrabold text-white hover:bg-[#0369a1]"
                   >
-                    🖨️ View & Print Tax Invoice
+                    📄 View Tax Invoice
                   </a>
+                  {(() => {
+                    let phone = (quote.client_phone || "").replace(/\D/g, "");
+                    if (phone.length === 10) phone = "91" + phone;
+                    const invoiceLink = api.getInvoiceUrl(threadId);
+                    const msg = encodeURIComponent(
+                      `Hello ${quote.client_name},\n\nHere is your official GST Tax Invoice from ${quote.seller?.businessName || "Sharma Electricals"}:\n${invoiceLink}\n\nTotal: ₹${Number(quote.grand_total || 0).toFixed(2)}`
+                    );
+                    const waUrl = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+                    return (
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-xs font-extrabold text-white hover:bg-[#20ba5a] shadow-sm"
+                      >
+                        💬 Send via WhatsApp
+                      </a>
+                    );
+                  })()}
                   <button
                     onClick={() => {
                       window.location.hash = "";
