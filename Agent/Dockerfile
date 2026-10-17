@@ -1,48 +1,22 @@
-FROM langchain/langgraph-api:3.11
+FROM python:3.11-slim
 
-RUN printf '\nprecedence ::ffff:0:0/96  100\n' >> /etc/gai.conf
+WORKDIR /app
 
-# -- 1. Install dependencies from requirements.txt --
-ADD requirements.txt /deps/outer-agents/src/requirements.txt
+# Install system dependencies (curl for healthchecks, system libraries for Pillow)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN PYTHONDONTWRITEBYTECODE=1 uv pip install --system --no-cache-dir -c /api/constraints.txt -r /deps/outer-agents/src/requirements.txt
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# -- 2. Copy project source code (excluding .venv via .dockerignore) --
-ADD . /deps/outer-agents/src
+# Copy application source code
+COPY . .
 
-RUN set -ex && \
-    for line in '[project]' \
-                'name = "agents"' \
-                'version = "0.1"' \
-                '[tool.setuptools.package-data]' \
-                '"*" = ["**/*"]' \
-                '[build-system]' \
-                'requires = ["setuptools>=61"]' \
-                'build-backend = "setuptools.build_meta"'; do \
-        echo "$line" >> /deps/outer-agents/pyproject.toml; \
-    done
-
-# -- 3. Install local project package --
-RUN for dep in /deps/*; do \
-        echo "Installing $dep"; \
-        if [ -d "$dep" ]; then \
-            (cd "$dep" && PYTHONDONTWRITEBYTECODE=1 uv pip install --system --no-cache-dir -c /api/constraints.txt -e .); \
-        fi; \
-    done
-
-# -- 4. Point to QuoteFlow Graph --
-ENV LANGSERVE_GRAPHS='{"quoteflow": "/deps/outer-agents/src/agent/graph.py:graph"}'
-
-# -- 5. Ensure LangGraph API runtime integrity --
-RUN mkdir -p /api/langgraph_api /api/langgraph_runtime /api/langgraph_license && touch /api/langgraph_api/__init__.py /api/langgraph_runtime/__init__.py /api/langgraph_license/__init__.py
-RUN PYTHONDONTWRITEBYTECODE=1 uv pip install --system --no-cache-dir --no-deps -e /api
-
-# -- 6. Cleanup build tooling to keep image slim --
-RUN pip uninstall -y pip setuptools wheel
-RUN rm -rf /usr/local/lib/python*/site-packages/pip* /usr/local/lib/python*/site-packages/setuptools* /usr/local/lib/python*/site-packages/wheel* && find /usr/local/bin -name "pip*" -delete || true
-RUN rm -rf /usr/lib/python*/site-packages/pip* /usr/lib/python*/site-packages/setuptools* /usr/lib/python*/site-packages/wheel* && find /usr/bin -name "pip*" -delete || true
-RUN uv pip uninstall --system pip setuptools wheel && rm /usr/bin/uv /usr/bin/uvx
-
-WORKDIR /deps/outer-agents/src
-
+# Set default port and expose
+ENV PORT=8000
 EXPOSE 8000
+
+# Start FastAPI application with uvicorn
+CMD ["python", "main.py"]

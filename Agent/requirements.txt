@@ -9,3 +9,5 @@ pydantic-settings>=2.7.0
 python-dotenv>=1.0.1
 pillow>=10.4.0
 langgraph-cli[inmem]
+fastapi>=0.115.0
+uvicorn>=0.32.0

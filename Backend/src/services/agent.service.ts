@@ -25,11 +25,59 @@ export interface ApproveQuoteInput {
 
 export class AgentService {
   /**
-   * Helper to execute Python agent commands via Python runtime inside .venv.
-   * This guarantees that whether langgraph dev is running or not,
-   * the Express backend can execute the LangGraph pipeline with zero failure!
+   * Helper to execute Python agent commands via HTTP (when deployed on Render)
+   * or via local Python runtime inside .venv.
+   * This guarantees that whether deployed separately or running locally,
+   * the Express backend executes the LangGraph pipeline with zero failure!
    */
   private static async executePythonAgent(payload: Record<string, any>): Promise<any> {
+    // 1. First, attempt to invoke remote/local HTTP agent server if AGENT_API_URL is configured
+    if (config.agentApiUrl) {
+      try {
+        const action = payload.action;
+        let url = `${config.agentApiUrl}/api/quotes/start`;
+        let method = "POST";
+        let body: any = {};
+
+        if (action === "start") {
+          url = `${config.agentApiUrl}/api/quotes/start`;
+          body = payload.initial_input || {};
+        } else if (action === "resume") {
+          url = `${config.agentApiUrl}/api/quotes/${payload.thread_id}/approve`;
+          body = payload.decisions || {};
+        } else if (action === "edit") {
+          url = `${config.agentApiUrl}/api/quotes/${payload.thread_id}/edit`;
+          method = "PUT";
+          body = { edited_line_items: payload.edited_line_items || [] };
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json: any = await res.json();
+          if (json && json.success && json.data) {
+            return {
+              thread_id: payload.thread_id,
+              next: json.data.nextPendingNode || [],
+              values: json.data.values || json.data,
+            };
+          }
+        }
+      } catch (httpErr: any) {
+        console.warn(`[AgentService] HTTP agent request to ${config.agentApiUrl} note: ${httpErr.message}. Falling back to local process.`);
+      }
+    }
+
+    // 2. Fallback to local python process spawn
     return new Promise((resolve, reject) => {
       // Find Agent directory with agent/graph.py
       const possibleAgentDirs = [
@@ -95,12 +143,11 @@ elif action == "resume":
     graph.update_state(
         config=config,
         values={
-            "human_vendor_approval": decisions.get("accept_quote", True),
+            "human_approved_quote": decisions.get("accept_quote", True),
             "human_accepted_addon": decisions.get("accept_addon", True),
             "human_approved_po": decisions.get("approve_po", True),
             "edited_line_items": decisions.get("edited_line_items")
-        },
-        as_node="revenue_and_procurement_node"
+        }
     )
     # Resume graph execution
     graph.invoke(None, config=config)
@@ -118,8 +165,7 @@ elif action == "edit":
         values={
             "edited_line_items": edited_items,
             "extracted_items": edited_items
-        },
-        as_node="inventory_and_billing_analyzer_node"
+        }
     )
     snapshot = graph.get_state(config)
     print("OUTPUT_JSON:" + json.dumps({
