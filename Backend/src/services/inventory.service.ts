@@ -140,4 +140,75 @@ export class InventoryService {
       client.release();
     }
   }
+
+  /**
+   * Updates every field of an existing catalog item.
+   */
+  static async updateCatalogItem(skuId: string, itemData: Partial<CatalogItem>): Promise<CatalogItem> {
+    const result = await query<CatalogItem>(
+      `UPDATE catalog_items
+       SET item_name = COALESCE($1, item_name),
+           category = COALESCE($2, category),
+           unit = COALESCE($3, unit),
+           unit_price = COALESCE($4, unit_price),
+           gst_rate = COALESCE($5, gst_rate),
+           current_stock = COALESCE($6, current_stock),
+           reorder_threshold = COALESCE($7, reorder_threshold),
+           preferred_supplier = COALESCE($8, preferred_supplier),
+           supplier_lead_time_days = COALESCE($9, supplier_lead_time_days)
+       WHERE sku_id = $10
+       RETURNING *;`,
+      [
+        itemData.item_name ?? null,
+        itemData.category ?? null,
+        itemData.unit ?? null,
+        itemData.unit_price !== undefined ? Number(itemData.unit_price) : null,
+        itemData.gst_rate !== undefined ? Number(itemData.gst_rate) : null,
+        itemData.current_stock !== undefined ? Number(itemData.current_stock) : null,
+        itemData.reorder_threshold !== undefined ? Number(itemData.reorder_threshold) : null,
+        itemData.preferred_supplier ?? null,
+        itemData.supplier_lead_time_days !== undefined ? Number(itemData.supplier_lead_time_days) : null,
+        skuId,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error(`Catalog item with SKU "${skuId}" not found.`);
+    }
+    return result.rows[0];
+  }
+
+  /**
+   * Creates a brand new catalog item.
+   */
+  static async createCatalogItem(itemData: CatalogItem): Promise<CatalogItem> {
+    const result = await query<CatalogItem>(
+      `INSERT INTO catalog_items (
+         sku_id, item_name, category, unit, unit_price, gst_rate,
+         current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *;`,
+      [
+        itemData.sku_id,
+        itemData.item_name,
+        itemData.category || "General",
+        itemData.unit || "piece",
+        Number(itemData.unit_price) || 0,
+        itemData.gst_rate !== undefined ? Number(itemData.gst_rate) : 18.0,
+        Number(itemData.current_stock) || 0,
+        Number(itemData.reorder_threshold) || 5,
+        itemData.preferred_supplier || "Local Warehouse",
+        Number(itemData.supplier_lead_time_days) || 2,
+      ]
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Deletes a catalog item by skuId.
+   */
+  static async deleteCatalogItem(skuId: string): Promise<boolean> {
+    const result = await query(`DELETE FROM catalog_items WHERE sku_id = $1;`, [skuId]);
+    return (result.rowCount ?? 0) > 0;
+  }
 }

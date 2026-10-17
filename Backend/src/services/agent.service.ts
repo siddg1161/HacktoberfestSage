@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { config } from "../config/env.js";
+import { pool, query } from "../config/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,6 +104,23 @@ elif action == "resume":
     )
     # Resume graph execution
     graph.invoke(None, config=config)
+    snapshot = graph.get_state(config)
+    print("OUTPUT_JSON:" + json.dumps({
+        "thread_id": thread_id,
+        "next": list(snapshot.next),
+        "values": snapshot.values
+    }, default=str))
+
+elif action == "edit":
+    edited_items = payload.get("edited_line_items", [])
+    graph.update_state(
+        config=config,
+        values={
+            "edited_line_items": edited_items,
+            "extracted_items": edited_items
+        },
+        as_node="inventory_and_billing_analyzer_node"
+    )
     snapshot = graph.get_state(config)
     print("OUTPUT_JSON:" + json.dumps({
         "thread_id": thread_id,
@@ -227,6 +245,98 @@ elif action == "resume":
       grandTotal: values.grand_total,
       clientPortalUrl: portalUrl,
       posIssued: values.pos_issued || [],
+    };
+  }
+
+  /**
+   * Updates line items for a quote in both LangGraph state checkpoint and (if committed) Neon DB.
+   */
+  static async editQuote(threadId: string, editedLineItems: any[]): Promise<any> {
+    let subtotal = 0;
+    let gstTotal = 0;
+
+    const normalizedItems = editedLineItems.map((item) => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.unit_price) || 0;
+      const gstRate = item.gst_rate !== undefined ? Number(item.gst_rate) : 18.0;
+      const lineSub = Math.round(qty * price * 100) / 100;
+      const gstAmt = Math.round(lineSub * (gstRate / 100.0) * 100) / 100;
+      const lineTotal = Math.round((lineSub + gstAmt) * 100) / 100;
+
+      subtotal += lineSub;
+      gstTotal += gstAmt;
+
+      return {
+        ...item,
+        quantity: qty,
+        unit_price: price,
+        gst_rate: gstRate,
+        gst_amount: gstAmt,
+        line_total: lineTotal,
+      };
+    });
+
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+    subtotal = Math.round(subtotal * 100) / 100;
+    gstTotal = Math.round(gstTotal * 100) / 100;
+
+    // Update LangGraph checkpoint if thread exists
+    try {
+      await this.executePythonAgent({
+        action: "edit",
+        thread_id: threadId,
+        edited_line_items: normalizedItems,
+      });
+    } catch (err: any) {
+      console.warn(`[AgentService] LangGraph edit warning for ${threadId}:`, err.message);
+    }
+
+    // If quote is already saved in Neon DB, update DB rows atomically
+    const quoteRes = await query("SELECT id FROM quotes WHERE thread_id = $1;", [threadId]);
+    if (quoteRes.rows.length > 0) {
+      const quoteId = quoteRes.rows[0].id;
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN;");
+        await client.query(
+          "UPDATE quotes SET subtotal = $1, gst_total = $2, grand_total = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4;",
+          [subtotal, gstTotal, grandTotal, quoteId]
+        );
+        await client.query("DELETE FROM quote_line_items WHERE quote_id = $1;", [quoteId]);
+        for (const item of normalizedItems) {
+          await client.query(
+            `INSERT INTO quote_line_items (
+               quote_id, sku_id, item_name, quantity, unit_price, gst_rate, gst_amount, line_total, stock_tier, is_ai_suggested
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`,
+            [
+              quoteId,
+              item.sku_id || "CUSTOM",
+              item.item_name || "Custom Item",
+              item.quantity,
+              item.unit_price,
+              item.gst_rate,
+              item.gst_amount,
+              item.line_total,
+              item.stock_tier || "HEALTHY",
+              item.is_ai_suggested ?? false,
+            ]
+          );
+        }
+        await client.query("COMMIT;");
+      } catch (dbErr) {
+        await client.query("ROLLBACK;");
+        throw dbErr;
+      } finally {
+        client.release();
+      }
+    }
+
+    return {
+      threadId,
+      subtotal,
+      gstTotal,
+      grandTotal,
+      extractedItems: normalizedItems,
     };
   }
 }

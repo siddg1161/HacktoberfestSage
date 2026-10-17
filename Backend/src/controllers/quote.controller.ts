@@ -69,6 +69,41 @@ export class QuoteController {
   }
 
   /**
+   * PUT /api/quotes/:threadId/edit
+   * Human edit: updates line items (quantities, rates, item additions/deletions)
+   * in both LangGraph checkpoint and Neon DB.
+   */
+  static async editQuote(req: Request, res: Response): Promise<void> {
+    try {
+      const { threadId } = req.params;
+      const { edited_line_items } = req.body;
+
+      if (!Array.isArray(edited_line_items)) {
+        res.status(400).json({
+          success: false,
+          error: "edited_line_items must be an array.",
+        });
+        return;
+      }
+
+      console.log(`[QuoteController] Editing quotation for thread ${threadId} with ${edited_line_items.length} items...`);
+      const result = await AgentService.editQuote(threadId, edited_line_items);
+
+      res.status(200).json({
+        success: true,
+        message: "Quotation updated successfully.",
+        data: result,
+      });
+    } catch (error: any) {
+      console.error("[QuoteController] editQuote error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to edit quotation.",
+      });
+    }
+  }
+
+  /**
    * GET /api/quotes
    * Returns all quotes for the Tab 3 Kanban / Lead Tracker.
    */

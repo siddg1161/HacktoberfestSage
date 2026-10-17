@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+.langgraph_api/
+__pycache__/
+*.py[cod]
+agent.db*
+*.png
+*.jpeg
+*.jpg
+.git
+.gitignore

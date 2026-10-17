@@ -9,6 +9,9 @@ router.post("/start", QuoteController.startQuote);
 // Human vendor approval (Resumes post-HITL)
 router.post("/:threadId/approve", QuoteController.approveQuote);
 
+// Human vendor edit (updates quantities, rates, line items)
+router.put("/:threadId/edit", QuoteController.editQuote);
+
 // List all quotes (for Kanban)
 router.get("/", QuoteController.getAllQuotes);
 
