@@ -121,6 +121,7 @@ type InventoryIcon =
   | "check"
   | "chevron"
   | "file"
+  | "store"
   | "minus"
   | "plus"
   | "search"
@@ -149,6 +150,15 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     minus: <path d="M5 12h14" />,
@@ -368,12 +378,12 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
               <Icon name="arrow" className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-                <Icon name="file" className="h-5 w-5" />
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52] shadow-sm">
+                <Icon name="store" className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
-                  parchi<span className="text-[#5f7a13]">pay</span>
+                  dukaan<span className="text-[#5f7a13]">pay</span>
                 </p>
                 <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
                   Inventory
@@ -717,7 +727,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                       </p>
 
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#6e7773]">
-                        <span>For Quote #{po.quote_id}</span>
+                        <span>For Quote #{po.quote_id || (po.thread_id ? po.thread_id.slice(0, 8) : po.id)}</span>
                         <span>·</span>
                         <span className="font-semibold">
                           Items:{" "}

@@ -6,6 +6,7 @@ type CaptureIcon =
   | "camera"
   | "check"
   | "file"
+  | "store"
   | "headphones"
   | "mic"
   | "stop"
@@ -35,6 +36,15 @@ function CaptureIcon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     headphones: (
@@ -94,18 +104,18 @@ function CaptureIcon({
 function Brand() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-        <CaptureIcon name="file" className="h-5 w-5" />
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0f1a13] text-[#caff52] shadow-md transition hover:scale-105">
+        <CaptureIcon name="store" className="h-5 w-5" />
       </span>
-      <span className="text-[20px] font-extrabold tracking-[-0.04em]">
-        parchi<span className="text-[#5f7a13]">pay</span>
+      <span className="font-display text-[19px] font-black tracking-[-0.05em]">
+        dukaan<span className="text-[#6a841d]">pay</span>
       </span>
     </div>
   );
 }
 
 export default function TechnicianPortal() {
-  const [parchi, setParchi] = useState<File | null>(null);
+  const [dukaanSlip, setDukaanSlip] = useState<File | null>(null);
   const [audio, setAudio] = useState<File | Blob | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
@@ -130,7 +140,7 @@ export default function TechnicianPortal() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const [techName] = useState(() => {
-    return localStorage.getItem("parchipay_tech_name") || "Vikram Patel";
+    return localStorage.getItem("dukaanpay_tech_name") || "Vikram Patel";
   });
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -144,14 +154,14 @@ export default function TechnicianPortal() {
     .toUpperCase() || "VP";
 
   useEffect(() => {
-    if (!parchi) {
+    if (!dukaanSlip) {
       setImageUrl("");
       return;
     }
-    const url = URL.createObjectURL(parchi);
+    const url = URL.createObjectURL(dukaanSlip);
     setImageUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [parchi]);
+  }, [dukaanSlip]);
 
   useEffect(() => {
     if (!audio) {
@@ -227,10 +237,10 @@ export default function TechnicianPortal() {
     }
   };
 
-  const chooseParchi = (event: ChangeEvent<HTMLInputElement>) => {
+  const chooseDukaanSlip = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setParchi(file);
+      setDukaanSlip(file);
       setStatus("ready");
     }
   };
@@ -288,7 +298,7 @@ export default function TechnicianPortal() {
 
     setStatus("sending");
     setErrorMessage("");
-    setProcessingStep("Node 1: Extracting handwritten parchi & Hinglish note (Gemma 4)...");
+    setProcessingStep("Node 1: Extracting handwritten dukaan slip & Hinglish note (Gemma 4)...");
 
     // Sequential step tracker matching LangGraph execution order: Node 1 -> Node 2 -> Node 3
     const timers: any[] = [];
@@ -305,8 +315,8 @@ export default function TechnicianPortal() {
 
     try {
       let slipImageBase64: string | undefined = undefined;
-      if (parchi) {
-        slipImageBase64 = await fileToBase64(parchi);
+      if (dukaanSlip) {
+        slipImageBase64 = await fileToBase64(dukaanSlip);
       }
 
       const result = await api.startQuote({
@@ -349,7 +359,7 @@ export default function TechnicianPortal() {
   };
 
   const reset = () => {
-    setParchi(null);
+    setDukaanSlip(null);
     setAudio(null);
     setCustomer("Sharma Electricals");
     setPhone("+91 98260 12345");
@@ -412,12 +422,12 @@ export default function TechnicianPortal() {
       <main className="mx-auto max-w-[1180px] px-5 py-8 sm:px-8 sm:py-12">
         <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#6a841d]">
-              <span className="h-2 w-2 rounded-full bg-[#85a62e]" />
+            <div className="mb-3 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#6a841d]">
+              <span className="live-dot relative flex h-2 w-2 rounded-full bg-[#85a62e]" />
               New site visit
             </div>
-            <h1 className="text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
-              Send your parchi & voice
+            <h1 className="font-display text-3xl font-black tracking-[-0.05em] sm:text-4xl">
+              Send your dukaan slip & voice
             </h1>
             <p className="mt-2 text-sm text-[#69736e] sm:text-base">
               Snap a job slip or speak in Hinglish. QuoteFlow AI cross-references warehouse stock and generates the quote.
@@ -658,7 +668,7 @@ export default function TechnicianPortal() {
           </div>
         ) : (
           /* ======================================================================= */
-          /* CAPTURE FORM VIEW: Parchi Upload + Live Hinglish Voice Transcription    */
+          /* CAPTURE FORM VIEW: Dukaan Slip Upload + Live Hinglish Voice Transcription */
           /* ======================================================================= */
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
             <section className="rounded-[28px] border border-[#17221d]/8 bg-white p-5 shadow-[0_12px_40px_rgba(23,34,29,0.05)] sm:p-8">
@@ -687,48 +697,48 @@ export default function TechnicianPortal() {
 
               <div className="my-8 h-px bg-[#17221d]/8" />
 
-              {/* 1. Parchi Photo */}
+              {/* 1. Dukaan Slip Photo */}
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-extrabold tracking-[-0.02em]">
-                      1. Upload or Snap Handwritten Parchi
+                      1. Upload or Snap Handwritten Dukaan Slip
                     </h2>
                     <p className="mt-1 text-xs text-[#79827d]">
                       Gemma 4 Multimodal vision will read items, quantities, and smudged writing
                     </p>
                   </div>
-                  {parchi && (
+                  {dukaanSlip && (
                     <span className="flex items-center gap-1 rounded-full bg-[#eafaaf] px-2.5 py-1 text-[10px] font-extrabold text-[#536716]">
                       <CaptureIcon name="check" className="h-3 w-3" /> Photo Attached
                     </span>
                   )}
                 </div>
                 <input
-                  id="parchi-file"
+                  id="dukaan-file"
                   className="sr-only"
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  onChange={chooseParchi}
+                  onChange={chooseDukaanSlip}
                 />
-                {parchi ? (
+                {dukaanSlip ? (
                   <div className="relative overflow-hidden rounded-2xl bg-[#e8e5dc]">
                     <img
                       src={imageUrl}
-                      alt="Parchi preview"
+                      alt="Dukaan slip preview"
                       className="h-64 w-full object-contain sm:h-72"
                     />
                     <button
                       type="button"
-                      onClick={() => setParchi(null)}
+                      onClick={() => setDukaanSlip(null)}
                       className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-[#17221d]/80 text-white backdrop-blur"
-                      aria-label="Remove parchi"
+                      aria-label="Remove dukaan slip"
                     >
                       <CaptureIcon name="x" className="h-4 w-4" />
                     </button>
                     <label
-                      htmlFor="parchi-file"
+                      htmlFor="dukaan-file"
                       className="absolute bottom-3 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap rounded-full bg-white px-4 py-2 text-xs font-extrabold shadow-lg hover:bg-[#f4f5ef]"
                     >
                       Retake / Replace Photo
@@ -736,14 +746,14 @@ export default function TechnicianPortal() {
                   </div>
                 ) : (
                   <label
-                    htmlFor="parchi-file"
+                    htmlFor="dukaan-file"
                     className="group grid min-h-52 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-[#17221d]/15 bg-[#fafbf8] p-6 text-center transition hover:border-[#86a82c] hover:bg-[#f7fce9]"
                   >
                     <span>
                       <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#d6ff78] transition group-hover:scale-105">
                         <CaptureIcon name="camera" className="h-5 w-5" />
                       </span>
-                      <strong className="mt-3 block text-sm">Take photo or select parchi image</strong>
+                      <strong className="mt-3 block text-sm">Take photo or select dukaan slip image</strong>
                       <span className="mt-1 block text-xs text-[#87908b]">
                         JPG, PNG, WebP · High-resolution OCR
                       </span>
@@ -883,14 +893,14 @@ export default function TechnicianPortal() {
                   <div className="flex items-center justify-between rounded-xl bg-white/7 p-3">
                     <span className="flex items-center gap-3 text-xs font-bold text-white/70">
                       <CaptureIcon name="camera" className="h-4 w-4" />
-                      Parchi photo
+                      Dukaan slip photo
                     </span>
                     <span
                       className={`grid h-5 w-5 place-items-center rounded-full ${
-                        parchi ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
+                        dukaanSlip ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
                       }`}
                     >
-                      {parchi && <CaptureIcon name="check" className="h-3 w-3" />}
+                      {dukaanSlip && <CaptureIcon name="check" className="h-3 w-3" />}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl bg-white/7 p-3">
@@ -910,7 +920,7 @@ export default function TechnicianPortal() {
 
                 <button
                   type="button"
-                  disabled={(!parchi && !transcript) || status === "sending"}
+                  disabled={(!dukaanSlip && !transcript) || status === "sending"}
                   onClick={sendForProcessing}
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[#caff52] px-5 py-4 text-sm font-extrabold text-[#17221d] transition enabled:hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
                 >
