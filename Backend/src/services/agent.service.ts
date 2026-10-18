@@ -282,7 +282,7 @@ elif action == "edit":
 
     const res = await this.executePythonAgent(agentPayload);
     const values = res.values || {};
-    const portalUrl = `${config.clientPortalBaseUrl}/${input.threadId}`;
+    const portalUrl = `${config.clientPortalBaseUrl.replace(/\/+$/, "")}/${input.threadId}`;
 
     return {
       threadId: input.threadId,
