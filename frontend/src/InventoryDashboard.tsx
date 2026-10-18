@@ -123,7 +123,6 @@ type InventoryIcon =
   | "check"
   | "chevron"
   | "file"
-  | "store"
   | "minus"
   | "plus"
   | "search"
@@ -152,15 +151,6 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
-      </>
-    ),
-    store: (
-      <>
-        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-        <path d="M2 7h20" />
-        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     minus: <path d="M5 12h14" />,
@@ -460,12 +450,12 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
               <Icon name="arrow" className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52] shadow-sm">
-                <Icon name="store" className="h-5 w-5" />
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
+                <Icon name="file" className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
-                  dukaan<span className="text-[#5f7a13]">pay</span>
+                  parchi<span className="text-[#5f7a13]">pay</span>
                 </p>
                 <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
                   Inventory
@@ -581,14 +571,15 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
               <div>
                 <h2 className="text-lg font-extrabold tracking-[-0.025em]">All inventory</h2>
                 <p className="mt-1 text-xs text-[#818a85]">
-                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} shown
+                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"} shown · Click any item to edit all data
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-full bg-[#17221d] px-4 py-2 text-xs font-extrabold text-[#caff52] shadow transition hover:bg-[#25362e]"
+                className="flex items-center gap-1.5 rounded-full bg-[#17221d] px-4 py-2 text-xs font-extrabold text-[#caff52] shadow-sm transition hover:bg-[#273830]"
               >
+                <Icon name="plus" className="h-3.5 w-3.5" />
                 + Add Item
               </button>
             </div>
@@ -804,7 +795,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                       </p>
 
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#6e7773]">
-                        <span>For Quote #{po.quote_id || (po.thread_id ? po.thread_id.slice(0, 8) : po.id)}</span>
+                        <span>For Quote #{po.quote_id}</span>
                         <span>·</span>
                         <span className="font-semibold">
                           Items:{" "}
@@ -856,32 +847,28 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
         </section>
       </main>
 
-      {/* Full Item Editor Side Drawer (Every data can be changed) */}
       {selectedItem && editForm && (
         <div className="fixed inset-0 z-50 flex justify-end bg-[#17221d]/35 backdrop-blur-[2px]">
           <button
             type="button"
             className="absolute inset-0 cursor-default"
-            onClick={() => {
-              setSelectedItem(null);
-              setEditForm(null);
-            }}
+            onClick={() => setSelectedItem(null)}
             aria-label="Close inventory details"
           />
-          <aside className="relative h-full w-full max-w-[480px] overflow-y-auto bg-white shadow-2xl">
+          <aside className="relative h-full w-full max-w-[500px] overflow-y-auto bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#17221d]/8 bg-white/95 px-6 py-5 backdrop-blur">
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#87908b]">
                   Edit Catalog Item
                 </p>
-                <p className="mt-0.5 font-mono text-xs font-bold text-[#17221d]">SKU: {editForm.id}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="font-mono text-base font-black text-[#17221d]">{editForm.id}</span>
+                  <StockBadge item={editForm} />
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedItem(null);
-                  setEditForm(null);
-                }}
+                onClick={() => setSelectedItem(null)}
                 className="grid h-10 w-10 place-items-center rounded-full border border-[#17221d]/10 hover:bg-[#f4f5ef]"
                 aria-label="Close details"
               >
@@ -890,107 +877,98 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#d6ff78]">
-                  <Icon name="box" className="h-6 w-6 text-[#17221d]" />
-                </span>
-                <StockBadge item={editForm} />
+              {/* Item Name */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                  Item Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-sm font-bold text-[#17221d] outline-none focus:border-[#789524] focus:ring-2 focus:ring-[#caff52]/30"
+                />
               </div>
 
-              {/* Form Fields: Every Data Can Be Changed */}
-              <div className="space-y-4">
+              {/* Category & Unit */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                    Item Name
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    Category
+                  </label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
+                  >
+                    <option value="Electrical">Electrical</option>
+                    <option value="AC service">AC service</option>
+                    <option value="Lighting">Lighting</option>
+                    <option value="Security">Security</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    Unit
                   </label>
                   <input
                     type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-semibold outline-none focus:border-[#789524] focus:ring-2 focus:ring-[#caff52]/30"
+                    value={editForm.unit}
+                    onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                    placeholder="e.g. piece, coil"
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
                   />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      Category
-                    </label>
-                    <select
-                      value={editForm.category}
-                      onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold outline-none focus:border-[#789524]"
-                    >
-                      <option value="Electrical">Electrical</option>
-                      <option value="Lighting">Lighting</option>
-                      <option value="Security">Security</option>
-                      <option value="AC service">AC service</option>
-                      <option value="Plumbing">Plumbing</option>
-                      <option value="Hardware">Hardware</option>
-                      <option value="General">General</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      Unit
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.unit}
-                      onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
-                      placeholder="e.g. piece, coil, metre"
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold outline-none focus:border-[#789524]"
-                    />
-                  </div>
+              {/* Unit Price & GST Rate */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    Selling Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.unitCost}
+                    onChange={(e) => setEditForm({ ...editForm, unitCost: parseFloat(e.target.value) || 0 })}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-sm font-black text-[#17221d] outline-none focus:border-[#789524]"
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      Selling Price (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editForm.unitCost}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, unitCost: parseFloat(e.target.value) || 0 })
-                      }
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-extrabold outline-none focus:border-[#789524]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      GST Rate (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editForm.gstRate ?? 18}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, gstRate: parseFloat(e.target.value) || 0 })
-                      }
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm font-extrabold outline-none focus:border-[#789524]"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    GST Rate (%)
+                  </label>
+                  <select
+                    value={editForm.gstRate ?? 18}
+                    onChange={(e) => setEditForm({ ...editForm, gstRate: parseFloat(e.target.value) || 0 })}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
+                  >
+                    <option value="0">0% (Nil)</option>
+                    <option value="5">5% (Essential)</option>
+                    <option value="12">12% (Standard)</option>
+                    <option value="18">18% (Standard Services)</option>
+                    <option value="28">28% (Luxury / Heavy)</option>
+                  </select>
                 </div>
+              </div>
 
-                {/* Stock & Reorder Threshold with Live +/- Stepper */}
-                <div className="rounded-2xl border border-[#17221d]/10 bg-[#fafbf8] p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-extrabold text-[#17221d]">Available Warehouse Stock</p>
-                      <p className="text-[10px] text-[#7d8681]">Units currently physically on shelf</p>
-                    </div>
-                    <div className="flex items-center gap-2">
+              {/* Stock Levels & Reorder Threshold */}
+              <div className="rounded-2xl border border-[#17221d]/10 bg-[#f7f8f4] p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-[#49544f]">
+                  Warehouse Stock & Safety Threshold
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#727c77]">Current Stock</label>
+                    <div className="mt-1 flex items-center gap-1 rounded-xl border border-[#17221d]/12 bg-white p-1">
                       <button
                         type="button"
-                        onClick={() =>
-                          setEditForm({ ...editForm, quantity: Math.max(0, editForm.quantity - 1) })
-                        }
-                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ea] text-xs font-bold hover:bg-[#e0e3dc]"
+                        onClick={() => setEditForm({ ...editForm, quantity: Math.max(0, editForm.quantity - 1) })}
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#f0f2eb] text-sm font-bold hover:bg-[#e4e7de]"
                       >
                         -
                       </button>
@@ -998,100 +976,91 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                         type="number"
                         min="0"
                         value={editForm.quantity}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, quantity: Math.max(0, parseInt(e.target.value) || 0) })
-                        }
-                        className="h-8 w-16 rounded-lg border border-[#17221d]/15 bg-white text-center text-sm font-black outline-none"
+                        onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) || 0 })}
+                        className="w-full text-center text-sm font-black text-[#17221d] outline-none"
                       />
                       <button
                         type="button"
-                        onClick={() =>
-                          setEditForm({ ...editForm, quantity: editForm.quantity + 1 })
-                        }
-                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ea] text-xs font-bold hover:bg-[#e0e3dc]"
+                        onClick={() => setEditForm({ ...editForm, quantity: editForm.quantity + 1 })}
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#f0f2eb] text-sm font-bold hover:bg-[#e4e7de]"
                       >
                         +
                       </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between border-t border-[#17221d]/7 pt-3">
-                    <div>
-                      <p className="text-xs font-extrabold text-[#17221d]">Reorder Safety Threshold</p>
-                      <p className="text-[10px] text-[#7d8681]">Alerts when remaining stock drops below this</p>
-                    </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#727c77]">Reorder Threshold</label>
                     <input
                       type="number"
                       min="0"
                       value={editForm.reorderAt}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, reorderAt: Math.max(0, parseInt(e.target.value) || 0) })
-                      }
-                      className="h-8 w-16 rounded-lg border border-[#17221d]/15 bg-white text-center text-sm font-black outline-none"
+                      onChange={(e) => setEditForm({ ...editForm, reorderAt: parseInt(e.target.value) || 0 })}
+                      className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/12 bg-white px-3 text-center text-sm font-bold text-[#17221d] outline-none"
                     />
                   </div>
                 </div>
+                <p className="mt-2 text-[11px] text-[#78827d]">
+                  When stock falls below {editForm.reorderAt} {editForm.unit}s, QuoteFlow triggers autonomous restock POs.
+                </p>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      Preferred Supplier
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.supplier}
-                      onChange={(e) => setEditForm({ ...editForm, supplier: e.target.value })}
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                      Lead Time (Days)
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={editForm.leadTimeDays ?? 2}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, leadTimeDays: parseInt(e.target.value) || 1 })
-                      }
-                      className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
-                    />
-                  </div>
-                </div>
-
+              {/* Supplier & Lead Time */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-[#627725] uppercase tracking-wide">
-                    Storage Location / Bin
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    Preferred Supplier
                   </label>
                   <input
                     type="text"
-                    value={editForm.location}
-                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                    className="mt-1 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-xs font-semibold outline-none focus:border-[#789524]"
+                    value={editForm.supplier}
+                    onChange={(e) => setEditForm({ ...editForm, supplier: e.target.value })}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                    Lead Time (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.leadTimeDays ?? 2}
+                    onChange={(e) => setEditForm({ ...editForm, leadTimeDays: parseInt(e.target.value) || 2 })}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
                   />
                 </div>
               </div>
 
+              {/* Storage Location */}
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-[#69736e]">
+                  Storage Location / Bay
+                </label>
+                <input
+                  type="text"
+                  value={editForm.location}
+                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                  placeholder="e.g. Rack A-01, Bin B-04"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3.5 text-xs font-bold text-[#17221d] outline-none focus:border-[#789524]"
+                />
+              </div>
+
               {/* Action Buttons */}
-              <div className="pt-4 space-y-3">
+              <div className="pt-4 space-y-2.5">
                 <button
                   type="button"
                   onClick={handleSaveItemChanges}
                   disabled={isUpdatingItem}
-                  className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[#17221d] px-4 text-xs font-extrabold text-[#caff52] shadow-lg transition hover:bg-[#25362e] disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-[#17221d] py-3.5 text-xs font-black text-[#caff52] shadow-lg transition hover:bg-[#273a30] disabled:opacity-50"
                 >
                   <Icon name="check" className="h-4 w-4" />
-                  {isUpdatingItem ? "Saving changes to database…" : "Save Changes to Database"}
+                  {isUpdatingItem ? "Saving to Database..." : "Save Changes to Neon DB"}
                 </button>
-
                 <button
                   type="button"
                   onClick={() => handleDeleteItem(selectedItem.id)}
-                  className="flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-extrabold text-rose-700 hover:bg-rose-100 transition"
+                  className="w-full rounded-full border border-rose-200 bg-rose-50 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
                 >
-                  <Icon name="x" className="h-3.5 w-3.5" />
                   Delete Item from Catalog
                 </button>
               </div>
@@ -1102,12 +1071,12 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
 
       {/* Add New Catalog Item Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17221d]/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] border border-[#17221d]/10 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17221d]/50 p-4 backdrop-blur-[3px]">
+          <div className="relative w-full max-w-lg rounded-[28px] border border-[#17221d]/10 bg-white p-6 shadow-2xl sm:p-8">
             <div className="flex items-center justify-between border-b border-[#17221d]/8 pb-4">
               <div>
-                <h3 className="text-lg font-extrabold text-[#17221d]">Add New Catalog Item</h3>
-                <p className="text-xs text-[#808a85]">Expands the inventory database for autonomous quoting</p>
+                <h3 className="text-xl font-extrabold tracking-[-0.03em]">Add New Catalog Item</h3>
+                <p className="text-xs text-[#7d8782]">Creates SKU in Neon DB & empowers AI quote matching</p>
               </div>
               <button
                 type="button"
@@ -1118,161 +1087,141 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
               </button>
             </div>
 
-            <div className="mt-5 space-y-4 text-xs">
+            <div className="mt-5 space-y-4 text-xs font-bold">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">SKU ID *</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">SKU ID *</label>
                   <input
                     type="text"
                     value={newItemForm.sku_id}
                     onChange={(e) => setNewItemForm({ ...newItemForm, sku_id: e.target.value })}
-                    placeholder="e.g. SKU-WIRE-05"
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-mono font-bold"
+                    placeholder="e.g. SKU-SWITCH-10A"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-mono outline-none focus:border-[#789524]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Item Name *</label>
-                  <input
-                    type="text"
-                    value={newItemForm.item_name}
-                    onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
-                    placeholder="e.g. 4.0 sq mm Copper Cable"
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Category</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Category</label>
                   <select
                     value={newItemForm.category}
                     onChange={(e) => setNewItemForm({ ...newItemForm, category: e.target.value })}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 outline-none focus:border-[#789524]"
                   >
                     <option value="Electrical">Electrical</option>
+                    <option value="AC service">AC service</option>
                     <option value="Lighting">Lighting</option>
                     <option value="Security">Security</option>
-                    <option value="AC service">AC service</option>
                     <option value="Plumbing">Plumbing</option>
                     <option value="Hardware">Hardware</option>
                     <option value="General">General</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-[#69736e] uppercase">Item Name *</label>
+                <input
+                  type="text"
+                  value={newItemForm.item_name}
+                  onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
+                  placeholder="e.g. 10A Modular Switch White"
+                  className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm outline-none focus:border-[#789524]"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Unit</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Unit</label>
                   <input
                     type="text"
                     value={newItemForm.unit}
                     onChange={(e) => setNewItemForm({ ...newItemForm, unit: e.target.value })}
-                    placeholder="piece, coil, metre"
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                    placeholder="piece"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 outline-none focus:border-[#789524]"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Selling Price (₹)</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Selling Rate (₹)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={newItemForm.unit_price}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, unit_price: parseFloat(e.target.value) || 0 })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-extrabold"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, unit_price: parseFloat(e.target.value) || 0 })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold outline-none focus:border-[#789524]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">GST Rate (%)</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">GST %</label>
                   <input
                     type="number"
                     value={newItemForm.gst_rate}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, gst_rate: parseFloat(e.target.value) || 0 })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-extrabold"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, gst_rate: parseFloat(e.target.value) || 0 })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold outline-none focus:border-[#789524]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Initial Stock Qty</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Initial Stock</label>
                   <input
                     type="number"
                     min="0"
                     value={newItemForm.current_stock}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, current_stock: parseInt(e.target.value) || 0 })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, current_stock: parseInt(e.target.value) || 0 })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold outline-none focus:border-[#789524]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Reorder Threshold</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Reorder Threshold</label>
                   <input
                     type="number"
                     min="1"
                     value={newItemForm.reorder_threshold}
-                    onChange={(e) =>
-                      setNewItemForm({
-                        ...newItemForm,
-                        reorder_threshold: parseInt(e.target.value) || 1,
-                      })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, reorder_threshold: parseInt(e.target.value) || 5 })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-bold outline-none focus:border-[#789524]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Preferred Supplier</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Preferred Supplier</label>
                   <input
                     type="text"
                     value={newItemForm.preferred_supplier}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, preferred_supplier: e.target.value })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, preferred_supplier: e.target.value })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 outline-none focus:border-[#789524]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-[#627725]">Lead Time (Days)</label>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Lead Time (Days)</label>
                   <input
                     type="number"
                     min="1"
                     value={newItemForm.supplier_lead_time_days}
-                    onChange={(e) =>
-                      setNewItemForm({
-                        ...newItemForm,
-                        supplier_lead_time_days: parseInt(e.target.value) || 1,
-                      })
-                    }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3"
+                    onChange={(e) => setNewItemForm({ ...newItemForm, supplier_lead_time_days: parseInt(e.target.value) || 2 })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 outline-none focus:border-[#789524]"
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 flex items-center justify-end gap-3 border-t border-[#17221d]/8 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="rounded-full border border-[#17221d]/15 px-5 py-2.5 text-xs font-extrabold text-[#17221d] hover:bg-[#f4f5ef]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isCreatingItem}
-                onClick={handleCreateNewItem}
-                className="rounded-full bg-[#17221d] px-6 py-2.5 text-xs font-extrabold text-[#caff52] hover:bg-[#25362e] disabled:opacity-50"
-              >
-                {isCreatingItem ? "Creating..." : "Create Catalog Item"}
-              </button>
+              <div className="mt-6 flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="rounded-full border border-[#17221d]/15 px-5 py-2.5 text-xs font-bold text-[#17221d] hover:bg-[#f4f5ef]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateNewItem}
+                  disabled={isCreatingItem}
+                  className="rounded-full bg-[#17221d] px-6 py-2.5 text-xs font-black text-[#caff52] shadow hover:bg-[#25362e] disabled:opacity-50"
+                >
+                  {isCreatingItem ? "Creating..." : "Create Item"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

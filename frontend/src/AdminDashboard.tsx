@@ -142,7 +142,6 @@ type AdminIcon =
   | "chevron"
   | "download"
   | "file"
-  | "store"
   | "money"
   | "search"
   | "users"
@@ -175,15 +174,6 @@ function Icon({
       <>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
         <path d="M14 2v6h6M8 13h8M8 17h5" />
-      </>
-    ),
-    store: (
-      <>
-        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-        <path d="M2 7h20" />
-        <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 10V7" />
       </>
     ),
     money: (
@@ -289,7 +279,7 @@ export default function AdminDashboard() {
             (typeof q.ai_revenue_alert === "string" ? q.ai_revenue_alert : "");
 
           return {
-            id: String(q.quote_id || `Q-${q.id}`),
+            id: q.quote_id || `Q-${q.id}`,
             thread_id: q.thread_id,
             customer: q.client_name,
             phone: q.client_phone || "+91 98261 44820",
@@ -333,11 +323,8 @@ export default function AdminDashboard() {
         const rawItems = res.line_items || res.items || [];
 
         const lineItems = rawItems.map((li: any) => ({
-          sku_id: li.sku_id || "CUSTOM",
           name: li.item_name || li.name || "Item",
           quantity: Number(li.requested_qty ?? li.quantity) || 1,
-          unit_price: Number(li.unit_price) || Math.round(((Number(li.line_total ?? li.price) || 0) / 1.18 / (Number(li.quantity) || 1)) * 100) / 100,
-          gst_rate: Number(li.gst_rate) || 18,
           price: Number(li.line_total ?? li.price) || 0,
           stock_tier: li.stock_tier,
         }));
@@ -362,46 +349,6 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.warn("Could not load live quote detail:", err);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
-  // Admin inline item quantity adjustment
-  const handleAdminUpdateItemQty = (idx: number, delta: number) => {
-    if (!selectedJob || !selectedJob.items) return;
-    const items = [...selectedJob.items];
-    const target = { ...items[idx] };
-    target.quantity = Math.max(1, target.quantity + delta);
-    const unitPrice = (target as any).unit_price || (target.price / (target.quantity - delta || 1));
-    target.price = Math.round(target.quantity * unitPrice * 1.18 * 100) / 100;
-    items[idx] = target;
-
-    const newAmount = items.reduce((sum, it) => sum + it.price, 0);
-    setSelectedJob({
-      ...selectedJob,
-      items,
-      amount: newAmount,
-    });
-  };
-
-  // Admin save quote edits to LangGraph state and Neon DB
-  const handleAdminSaveQuoteEdits = async () => {
-    if (!selectedJob || !selectedJob.thread_id || !selectedJob.items) return;
-    try {
-      setLoadingDetail(true);
-      const payloadItems = selectedJob.items.map((it: any) => ({
-        sku_id: it.sku_id || "CUSTOM",
-        item_name: it.name,
-        quantity: it.quantity,
-        unit_price: it.unit_price || Math.round((it.price / 1.18 / it.quantity) * 100) / 100,
-        gst_rate: it.gst_rate || 18,
-      }));
-      await api.editQuote(selectedJob.thread_id, payloadItems);
-      setActionSuccess("Quote updated in state and database!");
-      await loadQuotes();
-    } catch (err: any) {
-      alert("Error saving edits: " + err.message);
     } finally {
       setLoadingDetail(false);
     }
@@ -473,7 +420,7 @@ export default function AdminDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `dukaanpay-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `parchipay-jobs-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -509,14 +456,14 @@ export default function AdminDashboard() {
               <Icon name="arrow" className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#0f1a13] text-[#caff52] shadow-md transition hover:scale-105">
-                <Icon name="store" className="h-5 w-5" />
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
+                <Icon name="file" className="h-5 w-5" />
               </span>
               <div>
-                <p className="font-display text-[18px] font-black leading-none tracking-[-0.05em]">
-                  dukaan<span className="text-[#6a841d]">pay</span>
+                <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
+                  parchi<span className="text-[#5f7a13]">pay</span>
                 </p>
-                <p className="font-mono mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b938f]">
+                <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
                   Admin
                 </p>
               </div>
@@ -563,10 +510,10 @@ export default function AdminDashboard() {
       <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#6a841d]">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#6a841d]">
               Operations overview
             </p>
-            <h1 className="font-display mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.045em] sm:text-4xl">
               Jobs dashboard
             </h1>
             <p className="mt-2 text-sm text-[#6f7974]">
@@ -633,19 +580,19 @@ export default function AdminDashboard() {
           ].map((metric) => (
             <article
               key={metric.label}
-              className="rounded-[22px] border border-[#17221d]/8 bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(23,34,29,0.06)]"
+              className="rounded-[22px] border border-[#17221d]/8 bg-white p-5"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-mono text-xs font-bold text-[#7b8580]">{metric.label}</p>
-                  <p className="mt-2 font-display text-2xl font-extrabold tracking-[-0.04em]">
+                  <p className="text-xs font-bold text-[#7b8580]">{metric.label}</p>
+                  <p className="mt-2 text-2xl font-extrabold tracking-[-0.04em]">
                     {metric.value}
                   </p>
                   <p className="mt-1 text-[10px] font-semibold text-[#9aa19d]">
                     {metric.detail}
                   </p>
                 </div>
-                <span className={`grid h-10 w-10 place-items-center rounded-xl shadow-sm ${metric.color}`}>
+                <span className={`grid h-10 w-10 place-items-center rounded-xl ${metric.color}`}>
                   <Icon name={metric.icon} className="h-5 w-5" />
                 </span>
               </div>
@@ -909,42 +856,13 @@ export default function AdminDashboard() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 rounded-lg border border-[#17221d]/10 bg-white px-1.5 py-0.5">
-                          <button
-                            type="button"
-                            onClick={() => handleAdminUpdateItemQty(idx, -1)}
-                            className="h-5 w-5 rounded bg-[#f4f5ef] text-[10px] font-bold hover:bg-[#e0e3dc]"
-                            title="Decrease qty"
-                          >
-                            -
-                          </button>
-                          <span className="text-xs font-bold px-1">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleAdminUpdateItemQty(idx, 1)}
-                            className="h-5 w-5 rounded bg-[#f4f5ef] text-[10px] font-bold hover:bg-[#e0e3dc]"
-                            title="Increase qty"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <p className="text-xs text-[#858d89]">×{item.quantity}</p>
                         <p className="text-xs font-extrabold">{currency(item.price)}</p>
                       </div>
                     );
                   })}
                   <div className="flex items-center justify-between bg-[#17221d] px-4 py-4 text-white">
-                    <div>
-                      <p className="text-xs font-bold text-white/60">Grand Total (incl. GST)</p>
-                      {selectedJob.thread_id && (
-                        <button
-                          type="button"
-                          onClick={handleAdminSaveQuoteEdits}
-                          className="mt-1 text-[10px] font-extrabold text-[#caff52] underline hover:text-white"
-                        >
-                          💾 Save item edits to database
-                        </button>
-                      )}
-                    </div>
+                    <p className="text-xs font-bold text-white/60">Grand Total (incl. GST)</p>
                     <p className="text-lg font-extrabold">{currency(selectedJob.amount)}</p>
                   </div>
                 </div>
@@ -1017,7 +935,7 @@ export default function AdminDashboard() {
                   )}
                   {selectedJob.thread_id && (
                     <a
-                      href={api.getInvoiceUrl(selectedJob.thread_id)}
+                      href={`http://localhost:5000/api/quotes/${selectedJob.thread_id}/invoice`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 rounded-full border border-[#17221d]/15 bg-white py-3 text-center text-xs font-extrabold text-[#17221d] transition hover:bg-[#f4f5f0]"
@@ -1034,7 +952,7 @@ export default function AdminDashboard() {
                     rel="noreferrer"
                     className="block w-full rounded-full border border-[#17221d]/10 bg-white py-2.5 text-center text-[11px] font-bold text-[#62706a] hover:bg-[#f4f5f0]"
                   >
-                    View Original Handwritten Dukaan Slip
+                    View Original Handwritten Parchi
                   </a>
                 )}
               </div>
