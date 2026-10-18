@@ -251,15 +251,15 @@ elif action == "edit":
     return {
       threadId,
       status: "PAUSED_AT_HITL_GATE",
-      nextPendingNode: res.next,
-      clientName: values.client_name,
-      clientPhone: values.client_phone,
-      extractedItems: values.extracted_items || [],
-      subtotal: values.subtotal || 0,
-      gstTotal: values.gst_total || 0,
-      grandTotal: values.grand_total || 0,
-      aiRevenueAlert: values.ai_revenue_alert || null,
-      restockPoDrafts: values.restock_po_drafts || [],
+      nextPendingNode: res.next || [],
+      clientName: values.client_name || values.clientName || input.clientName || "Sharma Electrical Contractors",
+      clientPhone: values.client_phone || values.clientPhone || input.clientPhone || "+91-9826012345",
+      extractedItems: values.extracted_items || values.extractedItems || [],
+      subtotal: Number(values.subtotal ?? values.subTotal ?? 0),
+      gstTotal: Number(values.gst_total ?? values.gstTotal ?? 0),
+      grandTotal: Number(values.grand_total ?? values.grandTotal ?? 0),
+      aiRevenueAlert: values.ai_revenue_alert || values.aiRevenueAlert || null,
+      restockPoDrafts: values.restock_po_drafts || values.restockPoDrafts || [],
     };
   }
 
@@ -286,11 +286,11 @@ elif action == "edit":
 
     return {
       threadId: input.threadId,
-      status: values.final_status || "QUOTED_AND_DISPATCHED",
-      clientName: values.client_name,
-      grandTotal: values.grand_total,
+      status: values.final_status || values.status || "QUOTED_AND_DISPATCHED",
+      clientName: values.client_name || values.clientName,
+      grandTotal: Number(values.grand_total ?? values.grandTotal ?? 0),
       clientPortalUrl: portalUrl,
-      posIssued: values.pos_issued || [],
+      posIssued: values.pos_issued || values.posIssued || values.dispatchResults?.pos_issued || [],
     };
   }
 

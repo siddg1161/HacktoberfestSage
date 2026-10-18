@@ -104,6 +104,7 @@ def start_quote(payload: StartQuoteRequest):
                 "grandTotal": vals.get("grand_total", 0),
                 "aiRevenueAlert": vals.get("ai_revenue_alert"),
                 "restockPoDrafts": vals.get("restock_po_drafts", []),
+                "values": vals,
             }
         }
     except Exception as e:
@@ -137,6 +138,7 @@ def approve_quote(thread_id: str, payload: ApproveQuoteRequest):
                 "clientName": resumed.get("client_name"),
                 "grandTotal": resumed.get("grand_total", 0),
                 "dispatchResults": resumed.get("dispatch_results", {}),
+                "values": resumed,
             }
         }
     except Exception as e:
@@ -165,6 +167,7 @@ def edit_quote(thread_id: str, payload: EditQuoteRequest):
                 "subtotal": vals.get("subtotal", 0),
                 "gstTotal": vals.get("gst_total", 0),
                 "grandTotal": vals.get("grand_total", 0),
+                "values": vals,
             }
         }
     except Exception as e:
