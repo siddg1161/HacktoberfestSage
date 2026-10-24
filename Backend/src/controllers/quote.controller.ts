@@ -175,8 +175,15 @@ export class QuoteController {
       `;
       const params: any[] = [];
       if (business_name && typeof business_name === "string" && business_name !== "all") {
-        sql += ` WHERE LOWER(business_name) = LOWER($1)`;
-        params.push(business_name);
+        const cleanBiz = business_name.trim().toLowerCase();
+        sql += ` WHERE (
+          LOWER(business_name) = LOWER($1)
+          OR LOWER(business_name) LIKE LOWER($2)
+          OR LOWER($1) LIKE '%' || LOWER(business_name) || '%'
+          OR LOWER(client_name) LIKE LOWER($2)
+          OR business_name = 'My Business'
+        )`;
+        params.push(business_name.trim(), `%${cleanBiz}%`);
       }
       sql += ` ORDER BY created_at DESC;`;
 

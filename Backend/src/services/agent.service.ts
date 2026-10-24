@@ -526,6 +526,25 @@ elif action == "get_state":
     const values = res.values || {};
     const portalUrl = `${config.clientPortalBaseUrl.replace(/\/+$/, "")}/${input.threadId}`;
 
+    // Guarantee that Neon DB quotes table holds the active tenant business_name
+    try {
+      const bizName = values.business_name || values.businessName;
+      const bizCat = values.business_category || values.businessCategory;
+      const curSym = values.currency_symbol || values.currencySymbol;
+      if (bizName && bizName !== "My Business") {
+        await query(
+          `UPDATE quotes 
+           SET business_name = $1, 
+               business_category = COALESCE($2, business_category), 
+               currency_symbol = COALESCE($3, currency_symbol)
+           WHERE thread_id = $4;`,
+          [bizName, bizCat || null, curSym || null, input.threadId]
+        );
+      }
+    } catch (e: any) {
+      console.warn("[AgentService] Non-fatal error ensuring business_name on dispatched quote:", e.message);
+    }
+
     return {
       threadId: input.threadId,
       status: values.final_status || values.status || "QUOTED_AND_DISPATCHED",

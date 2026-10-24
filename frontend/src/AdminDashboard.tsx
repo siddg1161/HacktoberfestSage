@@ -224,9 +224,20 @@ export default function AdminDashboard() {
       const res = await api.getQuotes(bizName);
       const list = Array.isArray(res) ? res : (res as any)?.quotes || (res as any)?.data || [];
 
-      // Strict client-side filter by active business name to prevent cross-tenant leakage
+      // Flexible client-side filter by active business name
       const filteredByBiz = bizName
-        ? list.filter((q: DbQuote) => q.business_name && q.business_name.toLowerCase().trim() === bizName.toLowerCase().trim())
+        ? list.filter((q: DbQuote) => {
+            if (!bizName || bizName === "all") return true;
+            const qBiz = (q.business_name || "").toLowerCase().trim();
+            const curBiz = bizName.toLowerCase().trim();
+            return (
+              qBiz === curBiz ||
+              qBiz.includes(curBiz) ||
+              curBiz.includes(qBiz) ||
+              qBiz === "my business" ||
+              (q.client_name && q.client_name.toLowerCase().includes(curBiz))
+            );
+          })
         : list;
 
       const liveJobs: Job[] = filteredByBiz.map((q: DbQuote) => {
@@ -278,9 +289,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadWorkerCount = async () => {
+    if (!activeBiz?.business_id) return;
+    try {
+      const list = await api.getWorkers(activeBiz.business_id);
+      if (Array.isArray(list)) {
+        const activeTechs = list.filter((w) => w.status === "ACTIVE" && w.role !== "Owner / Manager");
+        const count = activeTechs.length > 0 ? activeTechs.length : list.filter((w) => w.status === "ACTIVE").length;
+        setWorkerCount(count);
+      }
+    } catch (e) {
+      console.warn("Failed to load worker count:", e);
+    }
+  };
+
   useEffect(() => {
     loadQuotes();
-  }, [activeBiz?.business_name]);
+    loadWorkerCount();
+  }, [activeBiz?.business_name, activeBiz?.business_id]);
 
   // When job clicked, load live details if thread_id is available
   const handleSelectJob = async (job: Job) => {
@@ -508,13 +534,7 @@ export default function AdminDashboard() {
 
       {activeTab === "inventory" && (
         <div className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8">
-          <InventoryDashboard onBack={() => setActiveTab("jobs")} />
-        </div>
-      )}
-
-      {activeTab === "team" && (
-        <div className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8">
-          <WorkersTab />
+          <InventoryDashboard onBack={() => setActiveTab("jobs")} embedded={true} />
         </div>
       )}
 
@@ -948,7 +968,7 @@ export default function AdminDashboard() {
                   )}
                   {selectedJob.thread_id && (
                     <a
-                      href={`http://localhost:5000/api/quotes/${selectedJob.thread_id}/invoice`}
+                      href={api.getInvoiceUrl(selectedJob.thread_id)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 rounded-full border border-[#17221d]/15 bg-white py-3 text-center text-xs font-extrabold text-[#17221d] transition hover:bg-[#f4f5f0]"

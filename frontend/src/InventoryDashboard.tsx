@@ -9,7 +9,7 @@ import { PulseOpsOrders } from "./inventory/PulseOpsOrders";
 import { StockBadge } from "./inventory/StockBadge";
 import { currency, getStatus, InventoryIcon, InventoryItem, StockStatus, TRADES } from "./inventory/types";
 
-export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
+export default function InventoryDashboard({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const { activeBusiness } = useBusiness();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -122,46 +122,48 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const outOfStock = items.filter((item) => getStatus(item) === "Out of stock").length;
 
   return (
-    <div className="min-h-screen bg-[#f4f5ef] text-[#17221d]">
+    <div className={embedded ? "text-[#17221d]" : "min-h-screen bg-[#f4f5ef] text-[#17221d]"}>
       {/* Top Header */}
-      <header className="border-b border-[#17221d]/8 bg-white">
-        <div className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between px-5 sm:px-8">
-          <div className="flex items-center gap-5">
-            <button
-              type="button"
-              onClick={onBack}
-              className="grid h-9 w-9 place-items-center rounded-full border border-[#17221d]/10 text-[#66716b]"
-              aria-label="Back to jobs dashboard"
-            >
-              <Icon name="arrow" className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
-                <Icon name="file" className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
-                  parchi<span className="text-[#5f7a13]">pay</span>
-                </p>
-                <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
-                  Inventory
-                </p>
+      {!embedded && (
+        <header className="border-b border-[#17221d]/8 bg-white">
+          <div className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between px-5 sm:px-8">
+            <div className="flex items-center gap-5">
+              <button
+                type="button"
+                onClick={onBack}
+                className="grid h-9 w-9 place-items-center rounded-full border border-[#17221d]/10 text-[#66716b]"
+                aria-label="Back to jobs dashboard"
+              >
+                <Icon name="arrow" className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17221d] text-[#caff52]">
+                  <Icon name="file" className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">
+                    parchi<span className="text-[#5f7a13]">pay</span>
+                  </p>
+                  <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#8b938f]">
+                    Inventory
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-xs font-extrabold">{activeBusiness?.business_name || "QuoteFlow AI"}</p>
-              <p className="text-[10px] font-semibold text-[#87908b]">
-                {activeBusiness?.industry ? `${activeBusiness.industry} · ` : ""}Business Owner
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-extrabold">{activeBusiness?.business_name || "QuoteFlow AI"}</p>
+                <p className="text-[10px] font-semibold text-[#87908b]">
+                  {activeBusiness?.industry ? `${activeBusiness.industry} · ` : ""}Business Owner
+                </p>
+              </div>
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
+                {(activeBusiness?.business_name || "QF").slice(0, 2).toUpperCase()}
+              </span>
             </div>
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
-              {(activeBusiness?.business_name || "QF").slice(0, 2).toUpperCase()}
-            </span>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10">
         <div>

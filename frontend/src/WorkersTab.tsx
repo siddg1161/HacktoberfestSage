@@ -79,7 +79,7 @@ export default function WorkersTab() {
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Workers receive access through their own email and Better Auth password. No team member passwords are stored or displayed here.
+            Field technicians sign in to the mobile field portal using their email and 4-digit PIN to capture slips and generate GST estimates.
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export default function WorkersTab() {
 
                 <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-[11px] text-gray-400">Trade: {activeBiz.industry}</span>
-                  <span className="text-[11px] font-bold text-[#6a841d]">Account access by email</span>
+                  <span className="text-[11px] font-bold text-[#6a841d]">Quick 4-Digit PIN Access</span>
                 </div>
               </div>
             );

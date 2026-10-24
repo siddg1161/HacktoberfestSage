@@ -474,6 +474,10 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
     )
     grand_total = round(subtotal + gst_total, 2)
 
+    business_name = state.get("business_name") or "sharma"
+    business_category = state.get("business_category") or "Electrical"
+    currency_symbol = state.get("currency_symbol") or "₹"
+
     # 3. ATOMIC PostgreSQL Persistence:
     # Uses `with conn.transaction():` so that updating quote, replacing child line items,
     # and inserting supplier POs succeed or roll back together atomically!
@@ -485,10 +489,13 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
                 cur.execute(
                     """
                     INSERT INTO quotes (
-                        thread_id, client_name, client_phone, subtotal, gst_total, 
-                        grand_total, status, ai_revenue_alert, updated_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, 'QUOTED', %s, CURRENT_TIMESTAMP)
+                        thread_id, client_name, client_phone, business_name, business_category, currency_symbol,
+                        subtotal, gst_total, grand_total, status, ai_revenue_alert, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'QUOTED', %s, CURRENT_TIMESTAMP)
                     ON CONFLICT (thread_id) DO UPDATE SET
+                        business_name = COALESCE(EXCLUDED.business_name, quotes.business_name),
+                        business_category = COALESCE(EXCLUDED.business_category, quotes.business_category),
+                        currency_symbol = COALESCE(EXCLUDED.currency_symbol, quotes.currency_symbol),
                         subtotal = EXCLUDED.subtotal,
                         gst_total = EXCLUDED.gst_total,
                         grand_total = EXCLUDED.grand_total,
@@ -501,6 +508,9 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
                         thread_id,
                         client_name,
                         client_phone,
+                        business_name,
+                        business_category,
+                        currency_symbol,
                         subtotal,
                         gst_total,
                         grand_total,

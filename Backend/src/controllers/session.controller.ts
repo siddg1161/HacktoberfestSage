@@ -25,7 +25,9 @@ export class SessionController {
       const result = await query(
         `SELECT w.id, w.business_id, w.name, w.email, w.phone, w.role, w.status, w.created_at,
                 b.business_name, b.industry, b.tagline, b.owner_name, b.email AS business_email,
-                b.address, b.tax_id, b.currency_symbol
+                b.address, b.tax_id, b.currency_symbol,
+                (SELECT COUNT(*) FROM workers WHERE business_id = b.business_id AND status = 'ACTIVE' AND role != 'Owner / Manager') AS tech_count,
+                (SELECT COUNT(*) FROM workers WHERE business_id = b.business_id AND status = 'ACTIVE') AS total_workers
          FROM workers w
          JOIN business_profiles b ON b.business_id = w.business_id
          WHERE LOWER(w.email) = LOWER($1) AND w.status = 'ACTIVE'
@@ -43,6 +45,7 @@ export class SessionController {
       }
 
       const row = result.rows[0];
+      const activeWorkerCount = Number(row.tech_count) > 0 ? Number(row.tech_count) : Number(row.total_workers || 1);
       res.json({
         success: true,
         data: {
@@ -58,6 +61,7 @@ export class SessionController {
             address: row.address,
             tax_id: row.tax_id,
             currency_symbol: row.currency_symbol,
+            worker_count: activeWorkerCount,
           },
         },
       });

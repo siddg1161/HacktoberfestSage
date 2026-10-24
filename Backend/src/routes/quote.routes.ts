@@ -19,10 +19,10 @@ router.put("/:threadId/edit", requireSession, QuoteController.editQuote);
 // List all quotes (for Kanban)
 router.get("/", requireSession, QuoteController.getAllQuotes);
 
-// Get single quote details
-router.get("/:threadId", requireSession, QuoteController.getQuoteByThreadId);
+// Get single quote details (publicly accessible via unique threadId)
+router.get("/:threadId", QuoteController.getQuoteByThreadId);
 
-// Render printable GST Tax Invoice HTML
-router.get("/:threadId/invoice", requireSession, QuoteController.getInvoiceHtml);
+// Render printable GST Tax Invoice HTML (publicly accessible via unique threadId)
+router.get("/:threadId/invoice", QuoteController.getInvoiceHtml);
 
 export default router;

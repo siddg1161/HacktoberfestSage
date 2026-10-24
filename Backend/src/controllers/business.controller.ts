@@ -402,7 +402,9 @@ export class BusinessController {
       const worker = workerRes.rows[0];
 
       // Validate PIN if provided
-      if (pin_code && worker.pin_code && worker.pin_code !== pin_code) {
+      const inputPin = String(pin_code || "").trim();
+      const storedPin = String(worker.pin_code || "1234").trim();
+      if (inputPin && storedPin && inputPin !== storedPin) {
         res.status(401).json({
           success: false,
           error: "Invalid 4-digit PIN.",
@@ -422,13 +424,17 @@ export class BusinessController {
             role: worker.role,
           },
           business: {
+            business_id: worker.business_id,
+            business_name: worker.business_name || "Sharma Electricals & Automation",
             businessId: worker.business_id,
-            businessName: worker.business_name,
-            industry: worker.industry,
-            tagline: worker.tagline,
-            currencySymbol: worker.currency_symbol,
-            address: worker.address,
-            taxId: worker.tax_id,
+            businessName: worker.business_name || "Sharma Electricals & Automation",
+            industry: worker.industry || "Electrical",
+            tagline: worker.tagline || "Smart Electrical & Field Service Solutions",
+            currency_symbol: worker.currency_symbol || "₹",
+            currencySymbol: worker.currency_symbol || "₹",
+            address: worker.address || "Indore, MP",
+            tax_id: worker.tax_id || "",
+            taxId: worker.tax_id || "",
           },
         },
       });
