@@ -108,6 +108,29 @@ CREATE TABLE IF NOT EXISTS supplier_purchase_orders (
     status VARCHAR(64) NOT NULL DEFAULT 'DRAFTED',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 6. Workers / Technicians (Team members operating under a business)
+CREATE TABLE IF NOT EXISTS workers (
+    id SERIAL PRIMARY KEY,
+    business_id VARCHAR(64) NOT NULL,
+    name TEXT NOT NULL,
+    phone VARCHAR(64) NOT NULL,
+    role VARCHAR(64) NOT NULL DEFAULT 'Technician',
+    pin_code VARCHAR(16) NOT NULL DEFAULT '1234',
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+SEED_WORKERS_SQL = """
+INSERT INTO workers (business_id, name, phone, role, pin_code) VALUES
+('biz-electrical', 'Sameer Khan', '+91 99770 33219', 'Lead Electrician', '1234'),
+('biz-electrical', 'Arjun Mehta', '+91 88170 22019', 'Junior Electrician', '1234'),
+('biz-plumbing', 'Vikram Verma', '+91 98765 43210', 'Master Plumber', '1234'),
+('biz-hvac', 'Rohit Sharma', '+91 98270 66114', 'AC Specialist', '1234'),
+('biz-auto', 'Karan Patel', '+91 91234 56789', 'Auto Technician', '1234'),
+('biz-general', 'Suresh Kumar', '+91 90000 11111', 'General Contractor', '1234')
+ON CONFLICT DO NOTHING;
 """
 
 SEED_BUSINESS_PROFILES_SQL = """
@@ -462,6 +485,10 @@ def init_neon_database():
                 print("[db/schema.py]: Seeding multi-industry business profiles...")
                 cur.execute(SEED_BUSINESS_PROFILES_SQL)
                 print("[db/schema.py]: Business profiles seeded successfully.")
+
+                print("[db/schema.py]: Seeding team workers...")
+                cur.execute(SEED_WORKERS_SQL)
+                print("[db/schema.py]: Workers seeded successfully.")
 
                 print("[db/schema.py]: Seeding multi-industry catalog items (Electrical, Plumbing, HVAC, Automotive, General)...")
                 cur.execute(SEED_CATALOG_SQL)
