@@ -297,6 +297,31 @@ export const api = {
     if (!json.success) throw new Error(json.error || "Failed to delete item");
   },
 
+  // 7e. Bulk Import Catalog Items from Excel/CSV
+  async bulkImportCatalogItems(items: any[]): Promise<{ count: number; items: CatalogItem[] }> {
+    const res = await apiFetch(`${API_BASE}/api/inventory/catalog/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to bulk import items");
+    return json.data;
+  },
+
+  // 7f. Clear Catalog Items
+  async clearCatalogItems(industry?: string): Promise<number> {
+    const url = industry
+      ? `${API_BASE}/api/inventory/catalog/clear?industry=${encodeURIComponent(industry)}`
+      : `${API_BASE}/api/inventory/catalog/clear`;
+    const res = await apiFetch(url, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to clear catalog");
+    return json.count;
+  },
+
   // 8. Public Customer Portal Preview
   async getPortalQuote(threadId: string): Promise<any> {
     const res = await apiFetch(`${API_BASE}/api/portal/${threadId}`);

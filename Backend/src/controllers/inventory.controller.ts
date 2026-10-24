@@ -4,43 +4,16 @@ import { InventoryService } from "../services/inventory.service.js";
 export class InventoryController {
   /**
    * GET /api/inventory/catalog
-   * Fetches catalog items. For managers/owners, returns real-time warehouse stock levels
-   * and reorder thresholds. For field technicians, stock levels are omitted.
+   * Fetches real-time catalog stock levels and reorder thresholds.
    */
   static async getCatalog(req: Request, res: Response): Promise<void> {
     try {
       const industry = typeof req.query.industry === "string" ? req.query.industry : undefined;
       const items = await InventoryService.getAllCatalogItems(industry);
-
-      let isManager = false;
-      if (req.authenticatedUser?.email) {
-        const { query } = await import("../config/db.js");
-        const workerCheck = await query(
-          `SELECT role FROM workers WHERE LOWER(email) = LOWER($1) AND status = 'ACTIVE' LIMIT 1`,
-          [req.authenticatedUser.email]
-        );
-        const role = String(workerCheck.rows[0]?.role || "").toLowerCase();
-        isManager = role.includes("owner") || role.includes("manager");
-      }
-
-      // Technicians should not see warehouse stock levels or safety thresholds
-      const safeItems = isManager
-        ? items
-        : items.map((it: any) => ({
-            id: it.id,
-            sku_id: it.sku_id,
-            item_name: it.item_name,
-            category: it.category,
-            unit: it.unit,
-            unit_rate: it.unit_rate,
-            gst_rate: it.gst_rate,
-            industry: it.industry,
-          }));
-
       res.status(200).json({
         success: true,
-        count: safeItems.length,
-        data: safeItems,
+        count: items.length,
+        data: items,
       });
     } catch (error: any) {
       console.error("[InventoryController] getCatalog error:", error);
@@ -317,6 +290,54 @@ export class InventoryController {
       res.status(500).json({
         success: false,
         error: error.message || "Failed to send test alert email.",
+      });
+    }
+  }
+
+  /**
+   * POST /api/inventory/catalog/bulk
+   * Bulk import items from Excel or manual multi-entry.
+   */
+  static async bulkImportCatalogItems(req: Request, res: Response): Promise<void> {
+    try {
+      const items = req.body?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ success: false, error: "items array is required." });
+        return;
+      }
+      const result = await InventoryService.bulkUpsertCatalogItems(items);
+      res.status(200).json({
+        success: true,
+        message: `Successfully imported ${result.count} inventory items.`,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error("[InventoryController] bulkImportCatalogItems error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to bulk import items.",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/inventory/catalog/clear
+   * Clears dummy or outdated catalog items.
+   */
+  static async clearCatalog(req: Request, res: Response): Promise<void> {
+    try {
+      const industry = typeof req.query.industry === "string" ? req.query.industry : undefined;
+      const count = await InventoryService.clearCatalogItems(industry);
+      res.status(200).json({
+        success: true,
+        message: `Cleared ${count} items from inventory catalog.`,
+        count,
+      });
+    } catch (error: any) {
+      console.error("[InventoryController] clearCatalog error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to clear catalog.",
       });
     }
   }

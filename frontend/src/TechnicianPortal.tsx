@@ -938,9 +938,8 @@ export default function TechnicianPortal() {
             Input slip
             <span className="mx-1 h-px w-6 bg-[#17221d]/15" />
             <span
-              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] ${
-                status === "sent" ? "bg-[#17221d] text-white" : "bg-[#e0e3dc]"
-              }`}
+              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] ${status === "sent" ? "bg-[#17221d] text-white" : "bg-[#e0e3dc]"
+                }`}
             >
               2
             </span>
@@ -1310,11 +1309,10 @@ export default function TechnicianPortal() {
                           return (
                             <div
                               key={aIdx}
-                              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition ${
-                                inQuote
+                              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition ${inQuote
                                   ? "bg-[#ecfdf5] border-[#86efac]"
                                   : "bg-white border-[#fef3c7] hover:border-[#fde68a]"
-                              }`}
+                                }`}
                             >
                               <div className="min-w-[180px] flex-1">
                                 <div className="flex items-center gap-2">
@@ -1388,13 +1386,101 @@ export default function TechnicianPortal() {
                                 <button
                                   type="button"
                                   onClick={() => handleToggleAddonToQuote(aIdx)}
-                                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-xs ${
-                                    inQuote
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-xs ${inQuote
                                       ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
                                       : "bg-[#047857] text-white hover:bg-[#065f46]"
-                                  }`}
+                                    }`}
                                 >
                                   {inQuote ? "Remove" : "+ Add to Quote"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Autonomous Supplier Restock POs Drafts */}
+              {quoteResult.restockPoDrafts && quoteResult.restockPoDrafts.length > 0 && (
+                <div className="mt-6 rounded-2xl border border-[#93c5fd] bg-[#f0f9ff] p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#dbeafe] text-[#1d4ed8] shadow-sm">
+                      <CaptureIcon name="file" className="h-5 w-5" />
+                    </span>
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-[#1e40af]">
+                            Autonomous Warehouse Restock POs ({quoteResult.restockPoDrafts.length} PO Drafts)
+                          </p>
+                          <p className="mt-0.5 text-xs text-[#3b82f6]">
+                            Stock shortages detected. Click "Review & Edit PO" to customize suppliers, restock quantities, or urgency before warehouse dispatch.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {quoteResult.restockPoDrafts.map((po, pIdx) => {
+                          const poTotal = Math.round(
+                            po.po_items.reduce((sum, it) => sum + (Number(it.line_total) || Number(it.order_qty) * Number(it.unit_price)), 0) * 100
+                          ) / 100;
+                          return (
+                            <div
+                              key={pIdx}
+                              className="rounded-xl bg-white p-4 border border-[#bfdbfe] shadow-xs flex flex-col justify-between hover:border-[#60a5fa] transition"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-extrabold text-[#17221d] flex items-center gap-1">
+                                      🏢 {po.supplier_name}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${po.urgency === "INSTANT_ORDER"
+                                        ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                        : "bg-blue-100 text-blue-700 border border-blue-200"
+                                      }`}
+                                  >
+                                    {po.urgency.replace("_", " ")}
+                                  </span>
+                                </div>
+
+                                <ul className="mt-3 space-y-1.5 text-xs text-[#4b5563]">
+                                  {po.po_items.map((it, itIdx) => (
+                                    <li key={itIdx} className="flex items-center justify-between bg-neutral-50 px-2 py-1 rounded border border-neutral-100">
+                                      <span className="font-medium text-[#1f2937]">
+                                        • {it.item_name}
+                                      </span>
+                                      <span className="font-bold text-[#111827]">
+                                        Qty: {it.order_qty} (₹{it.line_total})
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+
+                                {po.order_note && (
+                                  <p className="mt-2 text-[10px] text-[#6b7280] italic">
+                                    Note: {po.order_note}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[10px] text-[#6b7280] uppercase tracking-wider block font-bold">Total PO Value</span>
+                                  <span className="text-xs font-black text-[#1e40af]">₹{poTotal.toFixed(2)}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPoModal(pIdx)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[#dbeafe] px-3 py-1.5 text-xs font-bold text-[#1e40af] hover:bg-[#bfdbfe] transition shadow-xs"
+                                >
+                                  <CaptureIcon name="edit" className="h-3.5 w-3.5" />
+                                  Review & Edit PO
                                 </button>
                               </div>
                             </div>
@@ -1415,7 +1501,7 @@ export default function TechnicianPortal() {
                     </span>
                     <h3 className="mt-3 text-lg font-extrabold text-[#15803d]">Quote Finalized & Dispatched!</h3>
                     <p className="mt-1 text-xs text-[#166534]">
-                      Quote committed and ready for customer review.
+                      Quote and supplier POs committed atomically to Neon PostgreSQL.
                     </p>
                     <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
                       <a
@@ -1446,7 +1532,7 @@ export default function TechnicianPortal() {
                     <div>
                       <p className="text-sm font-extrabold">Ready to confirm and send quote?</p>
                       <p className="text-xs text-[#69736e]">
-                        Confirms line items, rates, and companion labor charges.
+                        Approves quote, AI companion labor charges, and drafts warehouse POs.
                       </p>
                       {editSuccessMsg && (
                         <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 inline-block">
@@ -1607,16 +1693,14 @@ export default function TechnicianPortal() {
                   <button
                     type="button"
                     onClick={toggleSpeechRecognition}
-                    className={`flex items-center justify-center gap-3 rounded-2xl border p-4 transition ${
-                      isListening
+                    className={`flex items-center justify-center gap-3 rounded-2xl border p-4 transition ${isListening
                         ? "border-[#f43f5e] bg-[#fff1f2] animate-pulse"
                         : "border-[#17221d]/10 bg-[#fafbf8] hover:border-[#86a82c]"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`grid h-11 w-11 place-items-center rounded-full ${
-                        isListening ? "bg-[#f43f5e] text-white" : "bg-[#d6ff78] text-[#17221d]"
-                      }`}
+                      className={`grid h-11 w-11 place-items-center rounded-full ${isListening ? "bg-[#f43f5e] text-white" : "bg-[#d6ff78] text-[#17221d]"
+                        }`}
                     >
                       <CaptureIcon name={isListening ? "stop" : "mic"} />
                     </span>
@@ -1635,9 +1719,8 @@ export default function TechnicianPortal() {
                     <button
                       type="button"
                       onClick={toggleRecording}
-                      className={`flex flex-1 items-center justify-center gap-3 rounded-2xl border p-4 transition ${
-                        recording ? "border-[#ff8c80] bg-[#fff0ed]" : "border-[#17221d]/10 bg-[#fafbf8]"
-                      }`}
+                      className={`flex flex-1 items-center justify-center gap-3 rounded-2xl border p-4 transition ${recording ? "border-[#ff8c80] bg-[#fff0ed]" : "border-[#17221d]/10 bg-[#fafbf8]"
+                        }`}
                     >
                       <span className="grid h-11 w-11 place-items-center rounded-full bg-[#e9ece4]">
                         <CaptureIcon name={recording ? "stop" : "headphones"} />
@@ -1715,9 +1798,8 @@ export default function TechnicianPortal() {
                       Dukaan slip photo
                     </span>
                     <span
-                      className={`grid h-5 w-5 place-items-center rounded-full ${
-                        dukaanSlip ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
-                      }`}
+                      className={`grid h-5 w-5 place-items-center rounded-full ${dukaanSlip ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
+                        }`}
                     >
                       {dukaanSlip && <CaptureIcon name="check" className="h-3 w-3" />}
                     </span>
@@ -1728,9 +1810,8 @@ export default function TechnicianPortal() {
                       Hinglish Voice Note
                     </span>
                     <span
-                      className={`grid h-5 w-5 place-items-center rounded-full ${
-                        transcript || audio ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
-                      }`}
+                      className={`grid h-5 w-5 place-items-center rounded-full ${transcript || audio ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
+                        }`}
                     >
                       {(transcript || audio) && <CaptureIcon name="check" className="h-3 w-3" />}
                     </span>
@@ -1836,22 +1917,20 @@ export default function TechnicianPortal() {
                     <button
                       type="button"
                       onClick={() => setPoEditForm({ ...poEditForm, urgency: "STANDARD_RESTOCK" })}
-                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
-                        poEditForm.urgency === "STANDARD_RESTOCK"
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${poEditForm.urgency === "STANDARD_RESTOCK"
                           ? "bg-blue-50 border-blue-500 text-blue-700"
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                      }`}
+                        }`}
                     >
                       📦 Standard Buffer
                     </button>
                     <button
                       type="button"
                       onClick={() => setPoEditForm({ ...poEditForm, urgency: "INSTANT_ORDER" })}
-                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
-                        poEditForm.urgency === "INSTANT_ORDER"
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${poEditForm.urgency === "INSTANT_ORDER"
                           ? "bg-rose-50 border-rose-500 text-rose-700"
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                      }`}
+                        }`}
                     >
                       🚨 Instant Deficit
                     </button>

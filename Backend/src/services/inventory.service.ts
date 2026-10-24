@@ -415,5 +415,76 @@ export class InventoryService {
     const result = await query(`DELETE FROM catalog_items WHERE sku_id = $1;`, [skuId]);
     return (result.rowCount ?? 0) > 0;
   }
+
+  /**
+   * Bulk inserts or updates catalog items in Neon PostgreSQL.
+   */
+  static async bulkUpsertCatalogItems(items: CatalogItem[]): Promise<{ count: number; items: CatalogItem[] }> {
+    if (!items || items.length === 0) return { count: 0, items: [] };
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN;");
+      const upserted: CatalogItem[] = [];
+
+      for (const item of items) {
+        if (!item.sku_id || !item.item_name) continue;
+        const res = await client.query<CatalogItem>(
+          `INSERT INTO catalog_items (
+             sku_id, item_name, category, unit, unit_price, gst_rate,
+             current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days, industry
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (sku_id) DO UPDATE SET
+             item_name = EXCLUDED.item_name,
+             category = EXCLUDED.category,
+             unit = EXCLUDED.unit,
+             unit_price = EXCLUDED.unit_price,
+             gst_rate = EXCLUDED.gst_rate,
+             current_stock = EXCLUDED.current_stock,
+             reorder_threshold = EXCLUDED.reorder_threshold,
+             preferred_supplier = EXCLUDED.preferred_supplier,
+             supplier_lead_time_days = EXCLUDED.supplier_lead_time_days,
+             industry = EXCLUDED.industry
+           RETURNING *;`,
+          [
+            item.sku_id.trim(),
+            item.item_name.trim(),
+            item.category || "General",
+            item.unit || "piece",
+            Number(item.unit_price) || 0,
+            item.gst_rate !== undefined ? Number(item.gst_rate) : 18.0,
+            Number(item.current_stock) || 0,
+            Number(item.reorder_threshold) || 5,
+            item.preferred_supplier || "Local Warehouse",
+            Number(item.supplier_lead_time_days) || 2,
+            item.industry || "General",
+          ]
+        );
+        if (res.rows[0]) upserted.push(res.rows[0]);
+      }
+
+      await client.query("COMMIT;");
+      return { count: upserted.length, items: upserted };
+    } catch (err) {
+      await client.query("ROLLBACK;");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Clears catalog items, optionally filtered by industry.
+   */
+  static async clearCatalogItems(industry?: string): Promise<number> {
+    let sql = "DELETE FROM catalog_items";
+    const params: any[] = [];
+    if (industry && industry.toLowerCase() !== "all" && industry !== "All Trades") {
+      sql += " WHERE LOWER(industry) = LOWER($1)";
+      params.push(industry.trim());
+    }
+    const res = await query(sql, params);
+    return res.rowCount ?? 0;
+  }
 }
 

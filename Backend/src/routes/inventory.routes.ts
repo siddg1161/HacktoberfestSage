@@ -1,31 +1,37 @@
 import { Router } from "express";
 import { InventoryController } from "../controllers/inventory.controller.js";
-import { requireSession, requireBusinessManager } from "../middleware/require-session.js";
+import { requireSession } from "../middleware/require-session.js";
 
 const router = Router();
 
-// Live inventory catalog (sanitized for technicians, full stock metrics for business managers)
+// Live inventory catalog with stock levels and safety thresholds
 router.get("/catalog", requireSession, InventoryController.getCatalog);
 
-// Business owner inventory editing: update item, create item, delete item (Restricted to Managers)
-router.put("/catalog/:skuId", requireSession, requireBusinessManager, InventoryController.updateCatalogItem);
-router.post("/catalog", requireSession, requireBusinessManager, InventoryController.createCatalogItem);
-router.delete("/catalog/:skuId", requireSession, requireBusinessManager, InventoryController.deleteCatalogItem);
+// Bulk import catalog items from Excel / CSV
+router.post("/catalog/bulk", requireSession, InventoryController.bulkImportCatalogItems);
 
-// Autonomous supplier purchase orders (Restricted to Managers)
-router.get("/pos", requireSession, requireBusinessManager, InventoryController.getPurchaseOrders);
+// Clear dummy or old catalog items
+router.delete("/catalog/clear", requireSession, InventoryController.clearCatalog);
 
-// Mark warehouse purchase order as received (Restricted to Managers)
-router.post("/pos/:poNumber/receive", requireSession, requireBusinessManager, InventoryController.receivePurchaseOrder);
+// Business owner inventory editing: update item, create item, delete item
+router.put("/catalog/:skuId", requireSession, InventoryController.updateCatalogItem);
+router.post("/catalog", requireSession, InventoryController.createCatalogItem);
+router.delete("/catalog/:skuId", requireSession, InventoryController.deleteCatalogItem);
 
-// Manual stock adjustment (Restricted to Managers)
-router.post("/adjust", requireSession, requireBusinessManager, InventoryController.adjustStock);
+// Autonomous supplier purchase orders
+router.get("/pos", requireSession, InventoryController.getPurchaseOrders);
 
-// Check catalog for low-stock items and send email to owner (Restricted to Managers)
-router.post("/alerts/check", requireSession, requireBusinessManager, InventoryController.checkStockAlerts);
+// Mark warehouse purchase order as received (replenishes stock)
+router.post("/pos/:poNumber/receive", requireSession, InventoryController.receivePurchaseOrder);
 
-// Send a test low-stock alert email to verify Brevo configuration (Restricted to Managers)
-router.post("/alerts/test", requireSession, requireBusinessManager, InventoryController.sendTestStockAlert);
+// Manual stock adjustment (triggers owner email if stock drops below threshold)
+router.post("/adjust", requireSession, InventoryController.adjustStock);
+
+// Check catalog for low-stock items and send email to owner
+router.post("/alerts/check", requireSession, InventoryController.checkStockAlerts);
+
+// Send a test low-stock alert email to verify Brevo configuration
+router.post("/alerts/test", requireSession, InventoryController.sendTestStockAlert);
 
 export default router;
 

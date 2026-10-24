@@ -4,7 +4,7 @@ import TechnicianAuth from "./TechnicianAuth";
 import ShopkeeperAuth from "./ShopkeeperAuth";
 import TechnicianPortal from "./TechnicianPortal";
 import CustomerPortal from "./CustomerPortal";
-import { useActiveBusiness, getActiveWorker, isTechnicianWorker } from "./businessContext";
+import { useActiveBusiness } from "./businessContext";
 
 type IconName =
   | "arrow"
@@ -170,15 +170,9 @@ function App() {
       window.location.hash === "#shopkeeper" ||
       window.location.hash === "#login",
   );
-  const [showAdminDashboard, setShowAdminDashboard] = useState(() => {
-    const isTech = isTechnicianWorker(getActiveWorker());
-    if (isTech) return false;
-    return (
-      window.location.hash === "#admin" ||
-      window.location.hash === "#dashboard" ||
-      window.location.hash === "#inventory"
-    );
-  });
+  const [showAdminDashboard, setShowAdminDashboard] = useState(
+    () => window.location.hash === "#admin" || window.location.hash === "#dashboard",
+  );
   const getPortalId = () => {
     if (window.location.hash.startsWith("#portal/")) {
       return window.location.hash.replace("#portal/", "");
@@ -193,29 +187,20 @@ function App() {
 
   useEffect(() => {
     const syncRoute = () => {
-      const hash = window.location.hash;
-      const isTech = isTechnicianWorker(getActiveWorker());
-
-      // If a logged-in technician tries to visit admin or inventory, redirect to technician workspace
-      if (isTech && (hash === "#admin" || hash === "#dashboard" || hash === "#inventory")) {
-        window.location.hash = "#technician";
-        return;
-      }
-
-      setShowTechnicianPortal(hash === "#technician");
+      setShowTechnicianPortal(window.location.hash === "#technician");
       setShowTechnicianAuth(
-        hash === "#technician-auth" ||
-        hash === "#tech-auth" ||
-        hash === "#tech-login",
+        window.location.hash === "#technician-auth" ||
+        window.location.hash === "#tech-auth" ||
+        window.location.hash === "#tech-login",
       );
       setShowShopkeeperAuth(
-        hash === "#shopkeeper-auth" ||
-        hash === "#shopkeeper-login" ||
-        hash === "#shopkeeper" ||
-        hash === "#login",
+        window.location.hash === "#shopkeeper-auth" ||
+        window.location.hash === "#shopkeeper-login" ||
+        window.location.hash === "#shopkeeper" ||
+        window.location.hash === "#login",
       );
       setShowAdminDashboard(
-        !isTech && (hash === "#admin" || hash === "#dashboard" || hash === "#inventory"),
+        window.location.hash === "#admin" || window.location.hash === "#dashboard",
       );
       setPortalThreadId(getPortalId());
     };
@@ -261,7 +246,7 @@ function App() {
         <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
           <div className="flex items-center gap-4">
             <Logo />
-            
+
           </div>
           <nav className="hidden items-center gap-8 text-sm font-semibold text-[#4d5953] md:flex">
             <a className="transition-colors hover:text-[#17221d]" href="#how">
