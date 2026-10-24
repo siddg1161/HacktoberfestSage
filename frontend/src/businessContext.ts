@@ -4,13 +4,11 @@ import { api, BusinessProfile, WorkerProfile } from "./api";
 const BIZ_STORAGE_KEY = "quoteflow_active_business";
 const WORKER_STORAGE_KEY = "quoteflow_active_worker";
 
-// Default fallback business
+// Default fallback business while loading from database
 export const DEFAULT_BUSINESS: BusinessProfile = {
-  business_id: "biz-electrical",
-  business_name: "Sharma Electricals & Automation",
-  industry: "Electrical",
-  tagline: "Intelligent Electrical, Wiring & Lighting Supplies",
-  owner_name: "Ramesh Sharma",
+  business_id: "",
+  business_name: "My Business",
+  industry: "General",
   currency_symbol: "₹",
 };
 
