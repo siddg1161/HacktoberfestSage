@@ -140,12 +140,64 @@ export default function AdminDashboard() {
   const [exported, setExported] = useState(false);
   const [activeTab, setActiveTab] = useState<"jobs" | "team">("jobs");
 
-  // Load real quotes from database
+  // Add Technician Modal state
+  const [showAddTechModal, setShowAddTechModal] = useState(false);
+  const [techName, setTechName] = useState("");
+  const [techEmail, setTechEmail] = useState("");
+  const [techPhone, setTechPhone] = useState("");
+  const [techRole, setTechRole] = useState("Field Technician");
+  const [techPin, setTechPin] = useState("1234");
+  const [techSubmitting, setTechSubmitting] = useState(false);
+  const [techError, setTechError] = useState("");
+  const [techSuccess, setTechSuccess] = useState<string | null>(null);
+  const [workerCount, setWorkerCount] = useState<number | null>(null);
+
+  const handleAddTechnician = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!techName.trim() || !techEmail.trim()) {
+      setTechError("Technician name and email address are required.");
+      return;
+    }
+    try {
+      setTechSubmitting(true);
+      setTechError("");
+      await api.addWorker(activeBiz.business_id, {
+        name: techName.trim(),
+        email: techEmail.trim(),
+        phone: techPhone.trim() || undefined,
+        role: techRole.trim() || "Field Technician",
+        pin_code: techPin.trim() || "1234",
+      });
+      setTechSuccess(`Technician ${techName} added successfully! They can log in immediately using email: ${techEmail} and PIN: ${techPin || "1234"}`);
+      setWorkerCount((prev) => (prev !== null ? prev + 1 : Number(activeBiz?.worker_count || 1) + 1));
+      setTechName("");
+      setTechEmail("");
+      setTechPhone("");
+      setTechPin("1234");
+      setTimeout(() => {
+        setShowAddTechModal(false);
+        setTechSuccess(null);
+      }, 4000);
+    } catch (err: any) {
+      setTechError(err.message || "Failed to add technician.");
+    } finally {
+      setTechSubmitting(false);
+    }
+  };
+
+  // Load real quotes from database scoped to the active business
   const loadQuotes = async () => {
     try {
-      const res = await api.getQuotes();
+      const bizName = activeBiz?.business_name;
+      const res = await api.getQuotes(bizName);
       const list = Array.isArray(res) ? res : (res as any)?.quotes || (res as any)?.data || [];
-      const liveJobs: Job[] = list.map((q: DbQuote) => {
+
+      // Strict client-side filter by active business name to prevent cross-tenant leakage
+      const filteredByBiz = bizName
+        ? list.filter((q: DbQuote) => q.business_name && q.business_name.toLowerCase().trim() === bizName.toLowerCase().trim())
+        : list;
+
+      const liveJobs: Job[] = filteredByBiz.map((q: DbQuote) => {
         let st: JobStatus = "Draft";
         if (q.status === "INVOICED") st = "Paid";
         else if (q.status === "WON") st = "Approved";
@@ -196,7 +248,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadQuotes();
-  }, []);
+  }, [activeBiz?.business_name]);
 
   // When job clicked, load live details if thread_id is available
   const handleSelectJob = async (job: Job) => {
@@ -420,6 +472,14 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => setShowAddTechModal(true)}
+              className="flex items-center justify-center gap-2 rounded-full bg-[#caff52] hover:bg-[#bbf03f] px-5 py-3.5 text-sm font-black text-[#17221d] shadow-md transition hover:-translate-y-0.5"
+            >
+              <span className="text-base font-black leading-none">+</span>
+              Add Technician
+            </button>
             <a
               href="#technician-auth"
               className="flex items-center justify-center gap-2 rounded-full border border-[#17221d]/15 bg-white px-5 py-3.5 text-sm font-extrabold transition hover:-translate-y-0.5"
@@ -463,8 +523,8 @@ export default function AdminDashboard() {
             },
             {
               label: "Active technicians",
-              value: "3",
-              detail: "All currently online",
+              value: String(workerCount !== null ? workerCount : (activeBiz?.worker_count || 1)),
+              detail: `${workerCount !== null ? workerCount : (activeBiz?.worker_count || 1)} team members`,
               icon: "users" as AdminIcon,
               color: "bg-[#e5e8ff]",
             },
@@ -857,6 +917,165 @@ export default function AdminDashboard() {
         <main className="mx-auto max-w-[1280px] px-5 py-6 sm:px-8">
           <WorkersTab />
         </main>
+      )}
+
+      {/* Add Technician Modal */}
+      {showAddTechModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[28px] shadow-2xl border border-[#17221d]/10 w-full max-w-lg p-6 sm:p-8 animate-fade-in">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#caff52] text-[#17221d]">
+                  <Icon name="users" className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="font-display font-black text-gray-900 text-lg">
+                    Add Field Technician
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Assign technician to <strong className="text-gray-800">{activeBiz.business_name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddTechModal(false);
+                  setTechError("");
+                  setTechSuccess(null);
+                }}
+                className="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {techSuccess ? (
+              <div className="py-6 space-y-4">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2">
+                  <div className="inline-grid h-12 w-12 place-items-center rounded-full bg-emerald-500 text-white text-xl font-black mb-1">
+                    ✓
+                  </div>
+                  <h4 className="font-extrabold text-emerald-950 text-base">Technician Added Successfully!</h4>
+                  <p className="text-xs text-emerald-800 leading-relaxed font-medium">
+                    {techSuccess}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-gray-50 p-4 border border-gray-200 text-xs space-y-1.5 text-gray-700">
+                  <p className="font-bold text-gray-900">How your technician logs in:</p>
+                  <p>1. Open DukaanPay and click <span className="font-bold text-[#6a841d]">🛠️ Login as Technician</span>.</p>
+                  <p>2. Enter their Email address and 4-digit PIN.</p>
+                  <p>3. They can immediately begin uploading voice notes &amp; handwritten slips for your shop!</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddTechModal(false);
+                    setTechSuccess(null);
+                  }}
+                  className="w-full py-3 rounded-full bg-[#17221d] text-white font-extrabold text-xs shadow hover:bg-black transition"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleAddTechnician} className="mt-5 space-y-4">
+                {techError && (
+                  <div className="p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200">
+                    ✕ {techError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rohan Sharma"
+                    value={techName}
+                    onChange={(e) => setTechName(e.target.value)}
+                    className="w-full h-11 px-4 text-xs font-semibold border border-gray-300 rounded-xl focus:outline-none focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    Technician Email Address * (Used to log in)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. rohan@sharmatiles.com"
+                    value={techEmail}
+                    onChange={(e) => setTechEmail(e.target.value)}
+                    className="w-full h-11 px-4 text-xs font-semibold border border-gray-300 rounded-xl focus:outline-none focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                      Role / Designation
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Field Technician"
+                      value={techRole}
+                      onChange={(e) => setTechRole(e.target.value)}
+                      className="w-full h-11 px-4 text-xs font-semibold border border-gray-300 rounded-xl focus:outline-none focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                      4-Digit Access PIN *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      placeholder="e.g. 1234"
+                      value={techPin}
+                      onChange={(e) => setTechPin(e.target.value)}
+                      className="w-full h-11 px-4 text-xs font-mono font-bold tracking-widest border border-gray-300 rounded-xl focus:outline-none focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    Phone Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="e.g. +91 98765 43210"
+                    value={techPhone}
+                    onChange={(e) => setTechPhone(e.target.value)}
+                    className="w-full h-11 px-4 text-xs font-semibold border border-gray-300 rounded-xl focus:outline-none focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/20"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddTechModal(false)}
+                    className="flex-1 py-3 text-xs font-extrabold text-gray-700 border border-gray-300 rounded-full hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={techSubmitting}
+                    className="flex-1 py-3 text-xs font-extrabold text-[#17221d] bg-[#caff52] hover:bg-[#b8f538] rounded-full shadow transition disabled:opacity-50"
+                  >
+                    {techSubmitting ? "Adding..." : "+ Create Technician"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
     </div>

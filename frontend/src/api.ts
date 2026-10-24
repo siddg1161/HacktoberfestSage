@@ -43,6 +43,7 @@ export interface WorkerProfile {
   email?: string;
   phone?: string;
   role: string;
+  pin_code?: string;
   status: string;
   created_at?: string;
 }
@@ -107,6 +108,8 @@ export interface DbQuote {
   thread_id: string;
   client_name: string;
   client_phone: string;
+  business_name?: string;
+  business_category?: string;
   subtotal: string;
   gst_total: string;
   grand_total: string;
@@ -202,8 +205,11 @@ export const api = {
   },
 
   // 3. Get all quotes (Kanban)
-  async getQuotes(): Promise<DbQuote[]> {
-    const res = await apiFetch(`${API_BASE}/api/quotes`);
+  async getQuotes(businessName?: string): Promise<DbQuote[]> {
+    const url = businessName
+      ? `${API_BASE}/api/quotes?business_name=${encodeURIComponent(businessName)}`
+      : `${API_BASE}/api/quotes`;
+    const res = await apiFetch(url);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch quotes");
     return json.data;
@@ -328,7 +334,7 @@ export const api = {
     return json.data;
   },
 
-  async addWorker(businessId: string, data: { name: string; email?: string; phone?: string; role?: string }): Promise<WorkerProfile> {
+  async addWorker(businessId: string, data: { name: string; email?: string; phone?: string; role?: string; pin_code?: string }): Promise<WorkerProfile> {
     const res = await apiFetch(`${API_BASE}/api/business/${businessId}/workers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -336,6 +342,29 @@ export const api = {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to add worker");
+    return json.data;
+  },
+
+  // 13. Technician Authentication
+  async workerLogin(emailOrPhone: string, pin_code?: string): Promise<{ worker: WorkerProfile; business: BusinessProfile }> {
+    const res = await apiFetch(`${API_BASE}/api/business/workers/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailOrPhone, phone: emailOrPhone, pin_code }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to log in technician");
+    return json.data;
+  },
+
+  async technicianSignup(data: { name: string; email: string; phone?: string; role?: string; pin_code?: string; business_id?: string }): Promise<{ worker: WorkerProfile; business: BusinessProfile }> {
+    const res = await apiFetch(`${API_BASE}/api/business/workers/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to create technician account");
     return json.data;
   },
 
