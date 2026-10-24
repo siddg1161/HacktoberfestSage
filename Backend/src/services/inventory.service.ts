@@ -5,6 +5,7 @@ export interface CatalogItem {
   sku_id: string;
   item_name: string;
   category: string;
+  industry?: string;
   unit: string;
   unit_price: number;
   gst_rate: number;
@@ -27,15 +28,22 @@ export interface SupplierPurchaseOrder {
 
 export class InventoryService {
   /**
-   * Fetches all catalog items with real-time stock levels and reorder thresholds.
+   * Fetches catalog items with real-time stock levels, optionally filtered by industry/trade.
    */
-  static async getAllCatalogItems(): Promise<CatalogItem[]> {
-    const result = await query<CatalogItem>(
-      `SELECT sku_id, item_name, category, unit, unit_price, gst_rate, 
-              current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days
-       FROM catalog_items 
-       ORDER BY category, item_name;`
-    );
+  static async getAllCatalogItems(industry?: string): Promise<CatalogItem[]> {
+    let sql = `
+      SELECT sku_id, item_name, category, industry, unit, unit_price, gst_rate, 
+             current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days
+      FROM catalog_items
+    `;
+    const params: any[] = [];
+    if (industry && industry.toLowerCase() !== "all") {
+      sql += ` WHERE LOWER(industry) = LOWER($1)`;
+      params.push(industry.trim());
+    }
+    sql += ` ORDER BY category, item_name;`;
+
+    const result = await query<CatalogItem>(sql, params);
     return result.rows;
   }
 
@@ -348,8 +356,9 @@ export class InventoryService {
            current_stock = COALESCE($6, current_stock),
            reorder_threshold = COALESCE($7, reorder_threshold),
            preferred_supplier = COALESCE($8, preferred_supplier),
-           supplier_lead_time_days = COALESCE($9, supplier_lead_time_days)
-       WHERE sku_id = $10
+           supplier_lead_time_days = COALESCE($9, supplier_lead_time_days),
+           industry = COALESCE($10, industry)
+       WHERE sku_id = $11
        RETURNING *;`,
       [
         itemData.item_name ?? null,
@@ -361,6 +370,7 @@ export class InventoryService {
         itemData.reorder_threshold !== undefined ? Number(itemData.reorder_threshold) : null,
         itemData.preferred_supplier ?? null,
         itemData.supplier_lead_time_days !== undefined ? Number(itemData.supplier_lead_time_days) : null,
+        itemData.industry ?? null,
         skuId,
       ]
     );
@@ -378,8 +388,8 @@ export class InventoryService {
     const result = await query<CatalogItem>(
       `INSERT INTO catalog_items (
          sku_id, item_name, category, unit, unit_price, gst_rate,
-         current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         current_stock, reorder_threshold, preferred_supplier, supplier_lead_time_days, industry
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *;`,
       [
         itemData.sku_id,
@@ -392,6 +402,7 @@ export class InventoryService {
         Number(itemData.reorder_threshold) || 5,
         itemData.preferred_supplier || "Local Warehouse",
         Number(itemData.supplier_lead_time_days) || 2,
+        itemData.industry || "General",
       ]
     );
     return result.rows[0];

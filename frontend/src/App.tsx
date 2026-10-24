@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import AdminDashboard from "./AdminDashboard";
 import TechnicianAuth from "./TechnicianAuth";
+import ShopkeeperAuth from "./ShopkeeperAuth";
 import TechnicianPortal from "./TechnicianPortal";
 import CustomerPortal from "./CustomerPortal";
-import InventoryDashboard from "./InventoryDashboard";
+import { useActiveBusiness } from "./businessContext";
 
 type IconName =
   | "arrow"
@@ -152,6 +153,7 @@ function Logo() {
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { business: activeBiz } = useActiveBusiness();
   const [showTechnicianPortal, setShowTechnicianPortal] = useState(
     () => window.location.hash === "#technician",
   );
@@ -159,13 +161,17 @@ function App() {
     () =>
       window.location.hash === "#technician-auth" ||
       window.location.hash === "#tech-auth" ||
+      window.location.hash === "#tech-login",
+  );
+  const [showShopkeeperAuth, setShowShopkeeperAuth] = useState(
+    () =>
+      window.location.hash === "#shopkeeper-auth" ||
+      window.location.hash === "#shopkeeper-login" ||
+      window.location.hash === "#shopkeeper" ||
       window.location.hash === "#login",
   );
   const [showAdminDashboard, setShowAdminDashboard] = useState(
-    () => window.location.hash === "#admin",
-  );
-  const [showInventoryDashboard, setShowInventoryDashboard] = useState(
-    () => window.location.hash === "#inventory" || window.location.hash === "#warehouse",
+    () => window.location.hash === "#admin" || window.location.hash === "#dashboard",
   );
   const getPortalId = () => {
     if (window.location.hash.startsWith("#portal/")) {
@@ -185,11 +191,16 @@ function App() {
       setShowTechnicianAuth(
         window.location.hash === "#technician-auth" ||
         window.location.hash === "#tech-auth" ||
+        window.location.hash === "#tech-login",
+      );
+      setShowShopkeeperAuth(
+        window.location.hash === "#shopkeeper-auth" ||
+        window.location.hash === "#shopkeeper-login" ||
+        window.location.hash === "#shopkeeper" ||
         window.location.hash === "#login",
       );
-      setShowAdminDashboard(window.location.hash === "#admin");
-      setShowInventoryDashboard(
-        window.location.hash === "#inventory" || window.location.hash === "#warehouse"
+      setShowAdminDashboard(
+        window.location.hash === "#admin" || window.location.hash === "#dashboard",
       );
       setPortalThreadId(getPortalId());
     };
@@ -211,18 +222,18 @@ function App() {
     );
   }
 
-  if (showTechnicianPortal) {
-    return <TechnicianPortal />;
-  }
-
-  if (showInventoryDashboard) {
+  if (showShopkeeperAuth) {
     return (
-      <InventoryDashboard
-        onBack={() => {
+      <ShopkeeperAuth
+        onSuccess={() => {
           window.location.hash = "#admin";
         }}
       />
     );
+  }
+
+  if (showTechnicianPortal) {
+    return <TechnicianPortal />;
   }
 
   if (showAdminDashboard) {
@@ -233,7 +244,10 @@ function App() {
     <div className="min-h-screen overflow-hidden bg-[#f7f7f2] text-[#17221d]">
       <header className="sticky top-0 z-50 border-b border-[#17221d]/8 bg-[#f7f7f2]/90 backdrop-blur-md transition-all">
         <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
-          <Logo />
+          <div className="flex items-center gap-4">
+            <Logo />
+            
+          </div>
           <nav className="hidden items-center gap-8 text-sm font-semibold text-[#4d5953] md:flex">
             <a className="transition-colors hover:text-[#17221d]" href="#how">
               How it works
@@ -247,25 +261,16 @@ function App() {
           </nav>
           <div className="hidden items-center gap-3 md:flex">
             <a
-              className="px-3 py-2 text-sm font-bold text-[#4d5953] transition hover:text-[#17221d]"
+              className="inline-flex items-center gap-2 rounded-full border border-[#17221d]/15 bg-white px-5 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:-translate-y-0.5 hover:bg-[#f2f4ed]"
               href="#technician-auth"
             >
-              Technician log in
+              <span>🛠️ Login as Technician</span>
             </a>
             <a
-              className="rounded-full border border-[#17221d]/15 bg-white px-4 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:-translate-y-0.5"
-              href="#inventory"
+              className="inline-flex items-center gap-2 rounded-full bg-[#17221d] px-5 py-2.5 text-xs font-extrabold text-[#caff52] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#27362f]"
+              href="#shopkeeper-auth"
             >
-              📦 Warehouse & Stock
-            </a>
-            <a className="px-3 py-2 text-sm font-bold text-[#4d5953] transition hover:text-[#17221d]" href="#admin">
-              Admin dashboard
-            </a>
-            <a
-              className="rounded-full bg-[#17221d] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#27362f]"
-              href="#technician"
-            >
-              Try the demo
+              <span>🏪 Login as Shopkeeper</span>
             </a>
           </div>
           <button
@@ -284,10 +289,8 @@ function App() {
               ["How it works", "#how"],
               ["Features", "#features"],
               ["Privacy", "#privacy"],
-              ["Technician log in", "#technician-auth"],
-              ["📦 Warehouse & Inventory", "#inventory"],
-              ["Admin dashboard", "#admin"],
-              ["Try the demo", "#technician"],
+              ["🏪 Login as Shopkeeper", "#shopkeeper-auth"],
+              ["🛠️ Login as Technician", "#technician-auth"],
             ].map(([label, href]) => (
               <a
                 key={href}
@@ -329,30 +332,40 @@ function App() {
                 Turn handwritten slips, site photos and Hinglish voice notes
                 into polished GST quotations—then get them approved and paid.
               </p>
-              <div className="animate-slide-up delay-300 mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="animate-slide-up delay-300 mt-9 flex flex-col gap-3.5 sm:flex-row">
                 <a
-                  href="#technician"
-                  className="shimmer-button group inline-flex items-center justify-center gap-3 rounded-full bg-[#0f1a13] px-7 py-4 text-[15px] font-bold text-white shadow-[0_12px_32px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
+                  href="#shopkeeper-auth"
+                  className="shimmer-button group flex-1 inline-flex items-center justify-center gap-3.5 rounded-2xl bg-[#0f1a13] px-6 py-4 text-white shadow-[0_14px_36px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
                 >
-                  Create your first quote
-                  <Icon
-                    name="arrow"
-                    className="h-4 w-4 transition-transform group-hover:translate-x-1"
-                  />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.getElementById("features");
-                    el?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="inline-flex items-center justify-center gap-3 rounded-full border border-[#0f1a13]/12 bg-white/80 px-6 py-4 text-[15px] font-bold transition hover:bg-white hover:shadow-md"
-                >
-                  <span className="grid h-8 w-8 place-items-center rounded-full border border-[#0f1a13]/20 bg-white">
-                    <Icon name="play" className="ml-0.5 h-3.5 w-3.5" />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#caff52] text-[#0f1a13]">
+                    <Icon name="store" className="h-5 w-5" />
                   </span>
-                  See it in action
-                </button>
+                  <div className="text-left">
+                    <span className="block text-[10px] font-extrabold uppercase tracking-wider text-[#caff52]">
+                      Shopkeeper / Owner
+                    </span>
+                    <span className="block text-[15px] font-black text-white">
+                      Sign in as Shopkeeper →
+                    </span>
+                  </div>
+                </a>
+
+                <a
+                  href="#technician-auth"
+                  className="group flex-1 inline-flex items-center justify-center gap-3.5 rounded-2xl border border-[#0f1a13]/15 bg-white/95 px-6 py-4 text-[#0f1a13] shadow-sm backdrop-blur transition hover:-translate-y-1 hover:bg-white hover:shadow-md"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f2f5ed] text-[#485b1c]">
+                    <Icon name="mic" className="h-5 w-5" />
+                  </span>
+                  <div className="text-left">
+                    <span className="block text-[10px] font-extrabold uppercase tracking-wider text-[#727d78]">
+                      On-site Team
+                    </span>
+                    <span className="block text-[15px] font-black text-[#0f1a13]">
+                      Sign in as Technician →
+                    </span>
+                  </div>
+                </a>
               </div>
               <div className="animate-fade-in delay-500 mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-[#6e7873]">
                 {["No card needed", "Works offline", "Your data stays yours"].map(
@@ -734,16 +747,22 @@ function App() {
                 Upload a dukaan slip. Record a note. Send a professional quote before
                 you&apos;ve even left the site.
               </p>
-              <a
-                href="#technician"
-                className="shimmer-button group mt-8 inline-flex items-center gap-3 rounded-full bg-[#0f1a13] px-8 py-4 text-sm font-bold text-white shadow-[0_14px_36px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
-              >
-                Build a quote for free
-                <Icon
-                  name="arrow"
-                  className="h-4 w-4 transition-transform group-hover:translate-x-1"
-                />
-              </a>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <a
+                  href="#shopkeeper-auth"
+                  className="shimmer-button group inline-flex items-center gap-2.5 rounded-full bg-[#0f1a13] px-7 py-3.5 text-sm font-bold text-white shadow-[0_14px_36px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
+                >
+                  <Icon name="store" className="h-4 w-4 text-[#caff52]" />
+                  Sign in as Shopkeeper
+                </a>
+                <a
+                  href="#technician-auth"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#0f1a13]/25 bg-white/90 px-7 py-3.5 text-sm font-extrabold text-[#0f1a13] hover:bg-white transition hover:-translate-y-1"
+                >
+                  <Icon name="mic" className="h-4 w-4 text-[#5f7a13]" />
+                  Sign in as Technician
+                </a>
+              </div>
             </div>
           </div>
         </section>
@@ -761,9 +780,8 @@ function App() {
             <a href="#how">How it works</a>
             <a href="#features">Features</a>
             <a href="#privacy">Privacy</a>
+            <a href="#shopkeeper-auth">Shopkeeper portal</a>
             <a href="#technician-auth">Technician portal</a>
-            <a href="#admin">Admin dashboard</a>
-            <a href="#">GitHub</a>
           </div>
           <p className="text-xs text-[#8c9490]">© 2026 DukaanPay</p>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, CatalogItem, PurchaseOrder } from "./api";
+import { useBusiness } from "./businessContext";
 
 type StockStatus = "In stock" | "Low stock" | "Out of stock";
 
@@ -7,6 +8,7 @@ type InventoryItem = {
   id: string;
   name: string;
   category: string;
+  industry?: string;
   unit: string;
   quantity: number;
   reorderAt: number;
@@ -17,105 +19,6 @@ type InventoryItem = {
   location: string;
   lastUpdated: string;
 };
-
-const initialItems: InventoryItem[] = [
-  {
-    id: "INV-001",
-    name: "2.5 sq mm copper wire",
-    category: "Electrical",
-    unit: "coil",
-    quantity: 18,
-    reorderAt: 8,
-    unitCost: 2450,
-    supplier: "Jain Electricals",
-    location: "Rack A-01",
-    lastUpdated: "Today, 10:42 AM",
-  },
-  {
-    id: "INV-002",
-    name: "16A modular switch",
-    category: "Electrical",
-    unit: "piece",
-    quantity: 7,
-    reorderAt: 10,
-    unitCost: 180,
-    supplier: "Anchor Distributors",
-    location: "Bin B-04",
-    lastUpdated: "Today, 9:16 AM",
-  },
-  {
-    id: "INV-003",
-    name: "8-way MCB box",
-    category: "Electrical",
-    unit: "piece",
-    quantity: 12,
-    reorderAt: 4,
-    unitCost: 1250,
-    supplier: "Jain Electricals",
-    location: "Rack A-03",
-    lastUpdated: "Yesterday, 5:30 PM",
-  },
-  {
-    id: "INV-004",
-    name: "R32 refrigerant gas",
-    category: "AC service",
-    unit: "cylinder",
-    quantity: 2,
-    reorderAt: 3,
-    unitCost: 6800,
-    supplier: "CoolTech Supplies",
-    location: "Store C-01",
-    lastUpdated: "Yesterday, 2:18 PM",
-  },
-  {
-    id: "INV-005",
-    name: "LED profile light 12W",
-    category: "Lighting",
-    unit: "metre",
-    quantity: 64,
-    reorderAt: 20,
-    unitCost: 390,
-    supplier: "BrightLite India",
-    location: "Rack D-02",
-    lastUpdated: "16 Oct, 4:12 PM",
-  },
-  {
-    id: "INV-006",
-    name: "2MP dome camera",
-    category: "Security",
-    unit: "piece",
-    quantity: 0,
-    reorderAt: 4,
-    unitCost: 2900,
-    supplier: "Secure Vision",
-    location: "Cabinet E-01",
-    lastUpdated: "16 Oct, 11:06 AM",
-  },
-  {
-    id: "INV-007",
-    name: "PVC drain pipe 20mm",
-    category: "AC service",
-    unit: "metre",
-    quantity: 42,
-    reorderAt: 15,
-    unitCost: 65,
-    supplier: "CoolTech Supplies",
-    location: "Rack C-04",
-    lastUpdated: "15 Oct, 3:45 PM",
-  },
-  {
-    id: "INV-008",
-    name: "24V LED driver",
-    category: "Lighting",
-    unit: "piece",
-    quantity: 9,
-    reorderAt: 6,
-    unitCost: 1200,
-    supplier: "BrightLite India",
-    location: "Bin D-06",
-    lastUpdated: "15 Oct, 10:22 AM",
-  },
-];
 
 type InventoryIcon =
   | "arrow"
@@ -217,10 +120,14 @@ function StockBadge({ item }: { item: InventoryItem }) {
   );
 }
 
+const TRADES = ["All Trades", "Electrical", "Plumbing", "HVAC", "Automotive", "General"];
+
 export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
-  const [items, setItems] = useState<InventoryItem[]>(initialItems);
+  const { activeBusiness } = useBusiness();
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [search, setSearch] = useState("");
+  const [tradeFilter, setTradeFilter] = useState<string>("All Trades");
   const [category, setCategory] = useState("All categories");
   const [stockFilter, setStockFilter] = useState<"All stock" | StockStatus>("All stock");
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -237,6 +144,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
     sku_id: "",
     item_name: "",
     category: "Electrical",
+    industry: "Electrical",
     unit: "piece",
     unit_price: 150,
     gst_rate: 18,
@@ -249,9 +157,10 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   const [actionFeedback, setActionFeedback] = useState("");
 
   // Load live catalog and purchase orders from backend
-  const loadData = async () => {
+  const loadData = async (tradeOverride?: string) => {
     try {
-      const catRes = await api.getCatalog();
+      const activeTrade = tradeOverride !== undefined ? tradeOverride : tradeFilter;
+      const catRes = await api.getCatalog(activeTrade !== "All Trades" ? activeTrade : undefined);
       const catList: CatalogItem[] = Array.isArray(catRes)
         ? catRes
         : (catRes as any)?.catalog || (catRes as any)?.data || [];
@@ -260,6 +169,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
           id: c.sku_id,
           name: c.item_name,
           category: c.category || "General",
+          industry: c.industry || "General",
           unit: c.unit || "piece",
           quantity: Number(c.current_stock) || 0,
           reorderAt: Number(c.reorder_threshold) || 5,
@@ -286,8 +196,14 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (activeBusiness?.industry) {
+      setTradeFilter(activeBusiness.industry);
+      setNewItemForm((prev) => ({ ...prev, industry: activeBusiness.industry }));
+      loadData(activeBusiness.industry);
+    } else {
+      loadData("All Trades");
+    }
+  }, [activeBusiness?.industry]);
 
   const handleReceivePo = async (poNumber: string) => {
     try {
@@ -404,6 +320,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
         sku_id: newItemForm.sku_id.trim(),
         item_name: newItemForm.item_name.trim(),
         category: newItemForm.category,
+        industry: newItemForm.industry,
         unit: newItemForm.unit,
         unit_price: Number(newItemForm.unit_price) || 0,
         gst_rate: Number(newItemForm.gst_rate) || 18,
@@ -419,6 +336,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
         sku_id: "",
         item_name: "",
         category: "Electrical",
+        industry: activeBusiness?.industry || "Electrical",
         unit: "piece",
         unit_price: 150,
         gst_rate: 18,
@@ -465,11 +383,13 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-xs font-extrabold">Rajesh Mehta</p>
-              <p className="text-[10px] font-semibold text-[#87908b]">Business owner</p>
+              <p className="text-xs font-extrabold">{activeBusiness?.business_name || "QuoteFlow AI"}</p>
+              <p className="text-[10px] font-semibold text-[#87908b]">
+                {activeBusiness?.industry ? `${activeBusiness.industry} · ` : ""}Business Owner
+              </p>
             </div>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
-              RM
+              {(activeBusiness?.business_name || "QF").slice(0, 2).toUpperCase()}
             </span>
           </div>
         </div>
@@ -583,7 +503,7 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                 + Add Item
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-4">
               <label className="relative">
                 <span className="sr-only">Search inventory</span>
                 <Icon
@@ -594,9 +514,25 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search items…"
-                  className="h-11 w-full rounded-xl border border-[#17221d]/10 bg-[#fafbf8] pl-10 pr-4 text-xs font-semibold outline-none focus:border-[#789524] sm:w-56"
+                  className="h-11 w-full rounded-xl border border-[#17221d]/10 bg-[#fafbf8] pl-10 pr-4 text-xs font-semibold outline-none focus:border-[#789524] sm:w-48"
                 />
               </label>
+              <select
+                value={tradeFilter}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setTradeFilter(val);
+                  loadData(val);
+                }}
+                className="h-11 rounded-xl border border-[#17221d]/10 bg-[#fafbf8] px-4 text-xs font-bold outline-none focus:border-[#789524]"
+                aria-label="Filter by trade / industry"
+              >
+                {TRADES.map((t) => (
+                  <option key={t} value={t}>
+                    Trade: {t}
+                  </option>
+                ))}
+              </select>
               <select
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
@@ -662,7 +598,14 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-xs font-semibold text-[#59645f]">
-                      {item.category}
+                      <div className="flex flex-col gap-0.5">
+                        <span>{item.category}</span>
+                        {item.industry && (
+                          <span className="inline-flex w-fit items-center rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-black text-sky-800">
+                            {item.industry}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4">
                       <p className="text-sm font-extrabold">{item.quantity}</p>
@@ -698,7 +641,9 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                     </span>
                     <div>
                       <p className="text-sm font-extrabold">{item.name}</p>
-                      <p className="mt-1 text-[10px] text-[#89918d]">{item.category}</p>
+                      <p className="mt-1 text-[10px] text-[#89918d]">
+                        {item.category} {item.industry ? `· ${item.industry}` : ""}
+                      </p>
                     </div>
                   </div>
                   <StockBadge item={item} />
@@ -1095,8 +1040,35 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                     type="text"
                     value={newItemForm.sku_id}
                     onChange={(e) => setNewItemForm({ ...newItemForm, sku_id: e.target.value })}
-                    placeholder="e.g. SKU-SWITCH-10A"
+                    placeholder="e.g. SKU-PIPE-PVC"
                     className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 font-mono outline-none focus:border-[#789524]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Industry / Trade</label>
+                  <select
+                    value={newItemForm.industry}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, industry: e.target.value })}
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 outline-none focus:border-[#789524]"
+                  >
+                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="Automotive">Automotive</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-[#69736e] uppercase">Item Name *</label>
+                  <input
+                    type="text"
+                    value={newItemForm.item_name}
+                    onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
+                    placeholder="e.g. 10A Modular Switch White"
+                    className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm outline-none focus:border-[#789524]"
                   />
                 </div>
                 <div>
@@ -1112,20 +1084,10 @@ export default function InventoryDashboard({ onBack }: { onBack: () => void }) {
                     <option value="Security">Security</option>
                     <option value="Plumbing">Plumbing</option>
                     <option value="Hardware">Hardware</option>
+                    <option value="Mechanical">Mechanical</option>
                     <option value="General">General</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-[#69736e] uppercase">Item Name *</label>
-                <input
-                  type="text"
-                  value={newItemForm.item_name}
-                  onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
-                  placeholder="e.g. 10A Modular Switch White"
-                  className="mt-1 h-10 w-full rounded-xl border border-[#17221d]/15 bg-[#fafbf8] px-3 text-sm outline-none focus:border-[#789524]"
-                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">

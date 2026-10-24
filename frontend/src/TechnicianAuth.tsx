@@ -1,4 +1,7 @@
 import { FormEvent, useState } from "react";
+import { api } from "./api";
+import { authClient } from "./auth-client";
+import { setActiveWorker, setActiveBusiness } from "./businessContext";
 
 type AuthIcon = "arrow" | "check" | "eye" | "eyeOff" | "file" | "store" | "lock" | "sparkle";
 
@@ -77,7 +80,7 @@ export default function TechnicianAuth({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const switchMode = (nextMode: "login" | "signup") => {
@@ -85,36 +88,48 @@ export default function TechnicianAuth({
     setError("");
   };
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if ((mode === "signup" && name.trim().length < 2) || phone.trim().length < 8) {
-      setError("Please enter your correct details.");
+    if (!email.trim()) {
+      setError("Please enter your technician email address.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must contain at least 6 characters.");
+    if (mode === "signup" && !name.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Use a password of at least 8 characters.");
       return;
     }
     setError("");
     setLoading(true);
-    window.setTimeout(() => {
-      setLoading(false);
-      const displayName =
-        name.trim() ||
-        (phone.trim() ? `Tech (${phone.trim().slice(-4)})` : "Vikram Patel");
-      localStorage.setItem("dukaanpay_tech_name", displayName);
-      localStorage.setItem(
-        "dukaanpay_tech_phone",
-        phone.trim() ? `+91 ${phone.trim()}` : "+91 98261 44820",
-      );
-      onSuccess();
-    }, 900);
-  };
 
-  const demoLogin = () => {
-    localStorage.setItem("dukaanpay_tech_name", "Vikram Patel");
-    localStorage.setItem("dukaanpay_tech_phone", "+91 98261 44820");
-    onSuccess();
+    try {
+      if (mode === "signup") {
+        const { error: authError } = await authClient.signUp.email({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+        });
+        if (authError) throw new Error(authError.message || "Unable to create your account.");
+      } else {
+        const { error: authError } = await authClient.signIn.email({
+          email: email.trim(),
+          password,
+        });
+        if (authError) throw new Error(authError.message || "Incorrect email or password.");
+      }
+
+      const workspace = await api.getMyWorkspace();
+      setActiveWorker(workspace.worker);
+      setActiveBusiness(workspace.business);
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || "We could not sign you in. Check your email and password.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -242,21 +257,17 @@ export default function TechnicianAuth({
 
               <label className="block">
                 <span className="mb-2 block text-xs font-extrabold">
-                  Mobile number
+                  Technician Email Address *
                 </span>
-                <div className="flex h-12 overflow-hidden rounded-xl border border-[#17221d]/12 bg-white transition focus-within:border-[#789524] focus-within:ring-4 focus-within:ring-[#caff52]/25">
-                  <span className="flex items-center border-r border-[#17221d]/10 px-3 text-sm font-bold text-[#68736d]">
-                    +91
-                  </span>
-                  <input
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    placeholder="98765 43210"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    className="min-w-0 flex-1 px-4 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-[#a3aaa6]"
-                  />
-                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="e.g. sameer@sharmaelectricals.com"
+                  autoComplete="email"
+                  className="h-12 w-full rounded-xl border border-[#17221d]/12 bg-white px-4 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-[#a3aaa6] focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/25"
+                />
               </label>
 
               <label className="block">
@@ -276,7 +287,9 @@ export default function TechnicianAuth({
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     type={showPassword ? "text" : "password"}
-                    placeholder="At least 6 characters"
+                    required
+                    minLength={8}
+                    placeholder="At least 8 characters"
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                     className="h-12 w-full rounded-xl border border-[#17221d]/12 bg-white px-4 pr-12 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-[#a3aaa6] focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/25"
                   />
@@ -324,13 +337,6 @@ export default function TechnicianAuth({
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={demoLogin}
-                className="w-full rounded-full border border-[#17221d]/15 bg-white py-3 text-xs font-bold text-[#44504a] transition hover:bg-[#ebefe6]"
-              >
-                Instant demo login as Vikram Patel
-              </button>
             </form>
 
             <div className="mt-7 flex items-center justify-center gap-2 text-[11px] font-semibold text-[#8a928e]">
