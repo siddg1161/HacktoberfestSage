@@ -103,6 +103,9 @@ export class AgentService {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               values: {
+                human_decision: "approve",
+                human_edit_feedback: "",
+                refinement_instruction: "",
                 human_approved_quote: payload.decisions?.accept_quote ?? true,
                 human_accepted_addon: payload.decisions?.accept_addon ?? true,
                 human_approved_po: payload.decisions?.approve_po ?? true,
@@ -212,6 +215,19 @@ export class AgentService {
             next: stateData.next || [],
             values: finalValues,
           };
+        } else if (action === "get_state") {
+          const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (!stateRes.ok) return { values: null };
+          const stateData: any = await stateRes.json();
+          return {
+            thread_id: threadId,
+            next: stateData.next || [],
+            values: stateData.values || null,
+          };
         }
       } catch (httpErr: any) {
         console.warn(
@@ -318,6 +334,9 @@ if action == "start":
 elif action == "resume":
     decisions = payload.get("decisions", {})
     update_vals = {
+        "human_decision": "approve",
+        "human_edit_feedback": "",
+        "refinement_instruction": "",
         "human_approved_quote": decisions.get("accept_quote", True),
         "human_accepted_addon": decisions.get("accept_addon", True),
         "human_approved_po": decisions.get("approve_po", True),
@@ -371,6 +390,14 @@ elif action == "refine":
         "thread_id": thread_id,
         "next": list(snapshot.next),
         "values": snapshot.values
+    }, default=str))
+
+elif action == "get_state":
+    snapshot = graph.get_state(config)
+    print("OUTPUT_JSON:" + json.dumps({
+        "thread_id": thread_id,
+        "next": list(snapshot.next) if snapshot else [],
+        "values": snapshot.values if snapshot else None
     }, default=str))
 `;
 
@@ -542,6 +569,22 @@ elif action == "refine":
         values.refinementExplanation ||
         "Quote re-drafted and inventory/GST recalculated based on your request.",
     };
+  }
+
+  /**
+   * Retrieves current state snapshot for a quote thread from LangGraph checkpointer.
+   */
+  static async getQuoteState(threadId: string): Promise<any | null> {
+    try {
+      const res = await this.executePythonAgent({
+        action: "get_state",
+        thread_id: threadId,
+      });
+      return res?.values || null;
+    } catch (err: any) {
+      console.warn(`[AgentService] getQuoteState error for ${threadId}:`, err.message);
+      return null;
+    }
   }
 
   /**

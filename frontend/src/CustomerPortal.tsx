@@ -115,10 +115,18 @@ export default function CustomerPortal({ threadId }: { threadId: string }) {
               <span className="text-[#64748b] font-bold uppercase tracking-wider block text-[10px]">Order Status:</span>
               <span
                 className={`inline-block mt-1 font-extrabold px-3 py-1 rounded-full text-xs ${
-                  approvedSuccess ? "bg-[#dcfce7] text-[#15803d]" : "bg-[#fef3c7] text-[#b45309]"
+                  approvedSuccess
+                    ? "bg-[#dcfce7] text-[#15803d]"
+                    : quote.isDraftPreview
+                    ? "bg-[#fef9c3] text-[#854d0e]"
+                    : "bg-[#fef3c7] text-[#b45309]"
                 }`}
               >
-                {approvedSuccess ? "✓ Approved & Confirmed" : "⏳ Awaiting Your Approval"}
+                {approvedSuccess
+                  ? "✓ Approved & Confirmed"
+                  : quote.isDraftPreview
+                  ? "🛠️ Contractor Draft Preview"
+                  : "⏳ Awaiting Your Approval"}
               </span>
             </div>
           </div>
@@ -231,6 +239,24 @@ export default function CustomerPortal({ threadId }: { threadId: string }) {
                     Return to home
                   </button>
                 </div>
+              </div>
+            ) : quote.isDraftPreview ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl bg-[#fef9c3] border border-[#fde047] p-4">
+                <div>
+                  <p className="text-xs font-extrabold text-[#854d0e]">
+                    🛠️ Contractor Review & Draft Preview
+                  </p>
+                  <p className="text-[11px] text-[#713f12] mt-0.5">
+                    Your field technician is currently reviewing these line items. Customer confirmation will unlock as soon as the quote is dispatched.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full sm:w-auto rounded-full bg-[#e2e8f0] text-[#64748b] px-6 py-3 text-xs font-bold cursor-not-allowed"
+                >
+                  ⏳ Awaiting Dispatch
+                </button>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
