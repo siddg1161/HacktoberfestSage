@@ -1,10 +1,50 @@
-const API_BASE = import.meta.env.VITE_API_URL || "https://hacktoberfestsage.onrender.com";
+export const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:5000"
+    : "https://hacktoberfestsage.onrender.com");
+
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, credentials: "include" });
+}
 
 export interface StartQuotePayload {
   client_name?: string;
   client_phone?: string;
   voice_transcript?: string;
   slip_image?: string; // Base64 data URL
+  business_name?: string;
+  business_category?: string;
+  worker_name?: string;
+  currency_symbol?: string;
+}
+
+export interface BusinessProfile {
+  id?: number;
+  business_id: string;
+  business_name: string;
+  industry: string;
+  tagline?: string;
+  owner_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  tax_id?: string;
+  currency_symbol: string;
+  created_at?: string;
+  worker_count?: number | string;
+  item_count?: number | string;
+}
+
+export interface WorkerProfile {
+  id: number;
+  business_id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  status: string;
+  created_at?: string;
 }
 
 export interface ExtractedItem {
@@ -82,6 +122,7 @@ export interface CatalogItem {
   sku_id: string;
   item_name: string;
   category: string;
+  industry?: string;
   unit: string;
   unit_price: number | string;
   gst_rate: number | string;
@@ -104,10 +145,16 @@ export interface PurchaseOrder {
   created_at?: string;
 }
 
+export interface WorkspaceContext {
+  user: { id: string; email: string; name: string };
+  worker: WorkerProfile;
+  business: BusinessProfile;
+}
+
 export const api = {
   // 1. Start Quote Pipeline (Node 1 -> 2 -> 3, Pauses at HITL Gate)
   async startQuote(payload: StartQuotePayload): Promise<QuoteResult> {
-    const res = await fetch(`${API_BASE}/api/quotes/start`, {
+    const res = await apiFetch(`${API_BASE}/api/quotes/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -127,7 +174,7 @@ export const api = {
       edited_line_items?: any[];
     }
   ): Promise<{ threadId: string; status: string; clientPortalUrl: string; grandTotal: number }> {
-    const res = await fetch(`${API_BASE}/api/quotes/${threadId}/approve`, {
+    const res = await apiFetch(`${API_BASE}/api/quotes/${threadId}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(decisions || { accept_quote: true, approve_po: true }),
@@ -142,7 +189,7 @@ export const api = {
     threadId: string,
     editedLineItems: any[]
   ): Promise<{ threadId: string; subtotal: number; gstTotal: number; grandTotal: number; extractedItems: ExtractedItem[] }> {
-    const res = await fetch(`${API_BASE}/api/quotes/${threadId}/edit`, {
+    const res = await apiFetch(`${API_BASE}/api/quotes/${threadId}/edit`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ edited_line_items: editedLineItems }),
@@ -154,7 +201,7 @@ export const api = {
 
   // 3. Get all quotes (Kanban)
   async getQuotes(): Promise<DbQuote[]> {
-    const res = await fetch(`${API_BASE}/api/quotes`);
+    const res = await apiFetch(`${API_BASE}/api/quotes`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch quotes");
     return json.data;
@@ -162,15 +209,18 @@ export const api = {
 
   // 4. Get single quote with line items
   async getQuote(threadId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/quotes/${threadId}`);
+    const res = await apiFetch(`${API_BASE}/api/quotes/${threadId}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch quote");
     return json.data;
   },
 
-  // 5. Inventory Catalog
-  async getCatalog(): Promise<CatalogItem[]> {
-    const res = await fetch(`${API_BASE}/api/inventory/catalog`);
+  // 5. Inventory Catalog (Optionally filtered by industry)
+  async getCatalog(industry?: string): Promise<CatalogItem[]> {
+    const url = industry && industry.toLowerCase() !== "all"
+      ? `${API_BASE}/api/inventory/catalog?industry=${encodeURIComponent(industry)}`
+      : `${API_BASE}/api/inventory/catalog`;
+    const res = await apiFetch(url);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch catalog");
     return json.data;
@@ -178,7 +228,7 @@ export const api = {
 
   // 6. Purchase Orders
   async getPurchaseOrders(): Promise<PurchaseOrder[]> {
-    const res = await fetch(`${API_BASE}/api/inventory/pos`);
+    const res = await apiFetch(`${API_BASE}/api/inventory/pos`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch POs");
     return json.data;
@@ -186,7 +236,7 @@ export const api = {
 
   // 7. Receive Stock
   async receivePurchaseOrder(poNumber: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/inventory/pos/${poNumber}/receive`, {
+    const res = await apiFetch(`${API_BASE}/api/inventory/pos/${poNumber}/receive`, {
       method: "POST",
     });
     const json = await res.json();
@@ -195,7 +245,7 @@ export const api = {
 
   // 7b. Update Catalog Item (Every data can be changed)
   async updateCatalogItem(skuId: string, itemData: Partial<CatalogItem>): Promise<CatalogItem> {
-    const res = await fetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
+    const res = await apiFetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(itemData),
@@ -207,7 +257,7 @@ export const api = {
 
   // 7c. Create New Catalog Item
   async createCatalogItem(itemData: Partial<CatalogItem> & { sku_id: string; item_name: string }): Promise<CatalogItem> {
-    const res = await fetch(`${API_BASE}/api/inventory/catalog`, {
+    const res = await apiFetch(`${API_BASE}/api/inventory/catalog`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(itemData),
@@ -219,7 +269,7 @@ export const api = {
 
   // 7d. Delete Catalog Item
   async deleteCatalogItem(skuId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
+    const res = await apiFetch(`${API_BASE}/api/inventory/catalog/${skuId}`, {
       method: "DELETE",
     });
     const json = await res.json();
@@ -228,7 +278,7 @@ export const api = {
 
   // 8. Public Customer Portal Preview
   async getPortalQuote(threadId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/portal/${threadId}`);
+    const res = await apiFetch(`${API_BASE}/api/portal/${threadId}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to fetch portal quote");
     return json.data;
@@ -236,7 +286,7 @@ export const api = {
 
   // 9. Customer Approval (Auto deducts stock & generates invoice)
   async approvePortalQuote(threadId: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/portal/${threadId}/approve`, {
+    const res = await apiFetch(`${API_BASE}/api/portal/${threadId}/approve`, {
       method: "POST",
     });
     const json = await res.json();
@@ -248,4 +298,43 @@ export const api = {
   getInvoiceUrl(threadId: string): string {
     return `${API_BASE}/api/quotes/${threadId}/invoice`;
   },
+
+  // 11. Multi-Business Profiles
+  async getMyWorkspace(): Promise<WorkspaceContext> {
+    const res = await apiFetch(`${API_BASE}/api/business/me`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to load your workspace");
+    return json.data;
+  },
+
+  async createAuthenticatedBusiness(data: Partial<BusinessProfile>): Promise<BusinessProfile> {
+    const res = await apiFetch(`${API_BASE}/api/business`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to create business profile");
+    return json.data;
+  },
+
+  // 12. Team & Worker Management
+  async getWorkers(businessId: string): Promise<WorkerProfile[]> {
+    const res = await apiFetch(`${API_BASE}/api/business/${businessId}/workers`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to fetch workers");
+    return json.data;
+  },
+
+  async addWorker(businessId: string, data: { name: string; email?: string; phone?: string; role?: string }): Promise<WorkerProfile> {
+    const res = await apiFetch(`${API_BASE}/api/business/${businessId}/workers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to add worker");
+    return json.data;
+  },
+
 };

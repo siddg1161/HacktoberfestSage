@@ -13,6 +13,12 @@ export interface InvoiceData {
   invoiceDate: string;
   clientName: string;
   clientPhone?: string;
+  businessName?: string;
+  businessCategory?: string;
+  businessAddress?: string;
+  businessPhone?: string;
+  businessGstin?: string;
+  currencySymbol?: string;
   threadId: string;
   subtotal: number;
   gstTotal: number;
@@ -24,10 +30,16 @@ export interface InvoiceData {
 export class InvoiceService {
   /**
    * Generates a sleek, professional GST Tax Invoice HTML document.
-   * Features CGST (9%) and SGST (9%) split with Indian Rupee formatting.
+   * Features CGST (9%) and SGST (9%) split with Indian Rupee / custom currency formatting.
    * Includes a direct WhatsApp wa.me link to share the invoice with the customer.
    */
   static generateInvoiceHtml(data: InvoiceData): string {
+    const curr = data.currencySymbol || "₹";
+    const bizName = data.businessName || "QuoteFlow AI";
+    const bizCategory = data.businessCategory ? `${data.businessCategory} Services & Supplies` : "Intelligent Trade & Supply";
+    const bizGstin = data.businessGstin ? `GSTIN: ${data.businessGstin}` : "GST Registered Entity";
+    const bizAddress = data.businessAddress || "Commercial Hub, Main Market";
+
     const cgstTotal = (data.gstTotal / 2).toFixed(2);
     const sgstTotal = (data.gstTotal / 2).toFixed(2);
 
@@ -44,9 +56,9 @@ export class InvoiceService {
       `Hello ${data.clientName},\n\n` +
       `Thank you for your order! Your quotation has been confirmed and processed.\n\n` +
       `📋 *Invoice No:* ${data.invoiceNumber}\n` +
-      `💰 *Grand Total:* ₹${Number(data.grandTotal).toFixed(2)}\n` +
+      `💰 *Grand Total:* ${curr}${Number(data.grandTotal).toFixed(2)}\n` +
       `📄 *View Tax Invoice Online:* ${invoiceUrl}\n\n` +
-      `_Sharma Electricals & Hardware Depot, Indore_`;
+      `_${bizName}_`;
 
     const encodedWhatsappText = encodeURIComponent(whatsappMessage);
     const whatsappLink = phoneDigits
@@ -68,9 +80,9 @@ export class InvoiceService {
             }
           </td>
           <td style="padding: 12px; text-align: center; color: #334155;">${it.quantity}</td>
-          <td style="padding: 12px; text-align: right; color: #334155;">₹${Number(it.unitPrice).toFixed(2)}</td>
+          <td style="padding: 12px; text-align: right; color: #334155;">${curr}${Number(it.unitPrice).toFixed(2)}</td>
           <td style="padding: 12px; text-align: center; color: #334155;">${it.gstRate}%</td>
-          <td style="padding: 12px; text-align: right; font-weight: 600; color: #0f172a;">₹${Number(it.lineTotal).toFixed(2)}</td>
+          <td style="padding: 12px; text-align: right; font-weight: 600; color: #0f172a;">${curr}${Number(it.lineTotal).toFixed(2)}</td>
         </tr>
       `
       )
@@ -111,9 +123,9 @@ export class InvoiceService {
     <!-- Header -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0284c7; padding-bottom: 20px; margin-bottom: 24px;">
       <div>
-        <h1 style="margin: 0; font-size: 26px; color: #0284c7; font-weight: 800; letter-spacing: -0.5px;">QuoteFlow AI</h1>
-        <p style="margin: 4px 0 0; color: #64748b; font-size: 13px;">PulseOps Intelligent Electrical & Hardware Supply</p>
-        <p style="margin: 2px 0 0; color: #64748b; font-size: 12px;">GSTIN: 23AABCP9876Q1Z8 | Indore, Madhya Pradesh</p>
+        <h1 style="margin: 0; font-size: 26px; color: #0284c7; font-weight: 800; letter-spacing: -0.5px;">${bizName}</h1>
+        <p style="margin: 4px 0 0; color: #64748b; font-size: 13px;">${bizCategory}</p>
+        <p style="margin: 2px 0 0; color: #64748b; font-size: 12px;">${bizGstin} | ${bizAddress}</p>
       </div>
       <div style="text-align: right;">
         <span style="background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Tax Invoice</span>
@@ -158,27 +170,27 @@ export class InvoiceService {
       <div style="width: 280px; font-size: 13px;">
         <div style="display: flex; justify-content: space-between; padding: 6px 0; color: #475569;">
           <span>Taxable Subtotal:</span>
-          <span>₹${Number(data.subtotal).toFixed(2)}</span>
+          <span>${curr}${Number(data.subtotal).toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0; color: #475569;">
           <span>Central GST (CGST 9%):</span>
-          <span>₹${cgstTotal}</span>
+          <span>${curr}${cgstTotal}</span>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0; color: #475569;">
           <span>State GST (SGST 9%):</span>
-          <span>₹${sgstTotal}</span>
+          <span>${curr}${sgstTotal}</span>
         </div>
         <div style="border-top: 2px solid #0f172a; margin-top: 6px; padding-top: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: #0284c7;">
           <span>Grand Total:</span>
-          <span>₹${Number(data.grandTotal).toFixed(2)}</span>
+          <span>${curr}${Number(data.grandTotal).toFixed(2)}</span>
         </div>
       </div>
     </div>
 
     <!-- Footer -->
     <div style="border-top: 1px dashed #cbd5e1; padding-top: 16px; text-align: center; color: #94a3b8; font-size: 11px;">
-      <p style="margin: 0;">This is a computer-generated GST tax invoice issued via QuoteFlow AI.</p>
-      <p style="margin: 4px 0 0;">Thank you for your business! Sharma Electricals & Traders, Indore.</p>
+      <p style="margin: 0;">This is an official computer-generated GST tax invoice issued via QuoteFlow AI.</p>
+      <p style="margin: 4px 0 0;">Thank you for your business! ${bizName}.</p>
     </div>
 
     <!-- WhatsApp Share & Actions (Instead of PDF) -->

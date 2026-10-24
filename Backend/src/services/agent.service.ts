@@ -13,6 +13,10 @@ export interface StartQuoteInput {
   slipImage?: string;
   clientName?: string;
   clientPhone?: string;
+  businessName?: string;
+  businessCategory?: string;
+  workerName?: string;
+  currencySymbol?: string;
 }
 
 export interface ApproveQuoteInput {
@@ -238,8 +242,12 @@ elif action == "edit":
       thread_id: threadId,
       initial_input: {
         thread_id: threadId,
-        client_name: input.clientName || "Sharma Electrical Contractors",
-        client_phone: input.clientPhone || "+91-9826012345",
+        client_name: input.clientName || "Valued Customer",
+        client_phone: input.clientPhone || "",
+        business_name: input.businessName || "My Business",
+        business_category: input.businessCategory || "General Trade & Services",
+        worker_name: input.workerName || "Field Estimator",
+        currency_symbol: input.currencySymbol || "₹",
         voice_transcript: input.voiceTranscript || "",
         slip_image_url: input.slipImage || null,
       },
@@ -252,7 +260,7 @@ elif action == "edit":
       threadId,
       status: "PAUSED_AT_HITL_GATE",
       nextPendingNode: res.next || [],
-      clientName: values.client_name || values.clientName || input.clientName || "Sharma Electrical Contractors",
+      clientName: values.client_name || values.clientName || input.clientName || "Valued Customer",
       clientPhone: values.client_phone || values.clientPhone || input.clientPhone || "+91-9826012345",
       extractedItems: values.extracted_items || values.extractedItems || [],
       subtotal: Number(values.subtotal ?? values.subTotal ?? 0),

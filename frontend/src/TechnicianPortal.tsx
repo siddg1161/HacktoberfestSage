@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { api, QuoteResult, CatalogItem, ExtractedItem } from "./api";
+import { useActiveBusiness, getActiveWorker } from "./businessContext";
 
 type CaptureIcon =
   | "arrow"
@@ -162,9 +163,13 @@ export default function TechnicianPortal() {
   const [customPrice, setCustomPrice] = useState(100);
   const [customUnit, setCustomUnit] = useState("piece");
 
+  const { business: activeBiz } = useActiveBusiness();
+  const activeWorker = getActiveWorker();
+
   const [techName] = useState(() => {
-    return localStorage.getItem("dukaanpay_tech_name") || "Vikram Patel";
+    return activeWorker?.name || localStorage.getItem("dukaanpay_tech_name") || "Sameer Khan";
   });
+  const workerRole = activeWorker?.role || "Field Specialist";
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -174,7 +179,7 @@ export default function TechnicianPortal() {
     .filter(Boolean)
     .join("")
     .slice(0, 2)
-    .toUpperCase() || "VP";
+    .toUpperCase() || "SK";
 
   useEffect(() => {
     if (!dukaanSlip) {
@@ -347,6 +352,10 @@ export default function TechnicianPortal() {
         client_phone: phone,
         voice_transcript: transcript,
         slip_image: slipImageBase64,
+        business_name: activeBiz.business_name,
+        business_category: activeBiz.industry,
+        worker_name: techName,
+        currency_symbol: activeBiz.currency_symbol || "₹",
       });
 
       timers.forEach((t) => clearTimeout(t));
@@ -383,13 +392,13 @@ export default function TechnicianPortal() {
   };
 
   useEffect(() => {
-    api.getCatalog()
+    api.getCatalog(activeBiz.industry)
       .then((cat) => {
         if (Array.isArray(cat)) setCatalogList(cat);
         else if ((cat as any)?.data) setCatalogList((cat as any).data);
       })
       .catch(console.error);
-  }, []);
+  }, [activeBiz.industry]);
 
   // Update item quantity directly from row and recalculate live
   const handleUpdateQty = (index: number, newQty: number) => {
@@ -594,7 +603,7 @@ export default function TechnicianPortal() {
             </button>
             <div className="hidden text-right sm:block">
               <p className="text-xs font-extrabold">{techName}</p>
-              <p className="text-[10px] font-semibold text-[#87908b]">Field technician</p>
+              <p className="text-[10px] font-semibold text-[#87908b]">{workerRole} • {activeBiz.business_name}</p>
             </div>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
               {initials}

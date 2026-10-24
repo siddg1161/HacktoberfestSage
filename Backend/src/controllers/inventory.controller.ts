@@ -8,7 +8,8 @@ export class InventoryController {
    */
   static async getCatalog(req: Request, res: Response): Promise<void> {
     try {
-      const items = await InventoryService.getAllCatalogItems();
+      const industry = typeof req.query.industry === "string" ? req.query.industry : undefined;
+      const items = await InventoryService.getAllCatalogItems(industry);
       res.status(200).json({
         success: true,
         count: items.length,
@@ -106,6 +107,7 @@ export class InventoryController {
         reorder_threshold,
         preferred_supplier,
         supplier_lead_time_days,
+        industry,
       } = req.body;
 
       if (!sku_id || !item_name) {
@@ -120,6 +122,7 @@ export class InventoryController {
         sku_id,
         item_name,
         category: category || "General",
+        industry: industry || "General",
         unit: unit || "piece",
         unit_price: Number(unit_price) || 0,
         gst_rate: gst_rate !== undefined ? Number(gst_rate) : 18.0,

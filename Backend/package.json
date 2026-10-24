@@ -7,11 +7,13 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "auth:migrate": "npx auth@latest migrate",
     "postinstall": "tsc",
     "start": "node dist/server.js"
   },
   "dependencies": {
     "@langchain/langgraph-sdk": "^0.0.32",
+    "better-auth": "^1.7.12",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
