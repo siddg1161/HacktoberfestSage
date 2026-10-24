@@ -8,6 +8,9 @@ pydantic>=2.10.0
 pydantic-settings>=2.7.0
 python-dotenv>=1.0.1
 pillow>=10.4.0
+opencv-python-headless>=4.10.0
+numpy>=1.26.0
+httpx>=0.27.0
 langgraph-cli[inmem]
 fastapi>=0.115.0
 uvicorn>=0.32.0

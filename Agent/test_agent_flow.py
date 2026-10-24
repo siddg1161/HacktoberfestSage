@@ -23,8 +23,8 @@ from langsmith import traceable
 # Ensure project root is in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from agent.graph import graph
-from agent.checkpointer import get_db_connection
+from agent.graph import create_quoteflow_graph
+from agent.checkpointer import get_db_connection, get_postgres_checkpointer
 from db.schema import init_neon_database
 
 # Prepare mock test input
@@ -57,11 +57,14 @@ def run_test(**kwargs):
     print(f" -> Input Voice Transcript: \"{initial_input['voice_transcript']}\"")
     print(" -> Executing: START -> Node 1 (Extractor) -> Node 2 (3-Tier & GST) -> Node 3 (Revenue & PO)...")
     
+    checkpointer = get_postgres_checkpointer()
+    test_graph = create_quoteflow_graph(checkpointer=checkpointer)
+
     # Run until interrupt_before=["execute_dispatch_node"]
-    graph.invoke(initial_input, config=config)
+    test_graph.invoke(initial_input, config=config)
 
     # 3. Inspect paused state at the Interrupt Gate
-    snapshot = graph.get_state(config)
+    snapshot = test_graph.get_state(config)
     print("\n" + "=" * 70)
     print("   [Step 3/5] PAUSED AT HITL INTERRUPT GATE")
     print("=" * 70)
@@ -109,7 +112,7 @@ def run_test(**kwargs):
     print(" -> Vendor accepts AI labor add-on: True")
     print(" -> Vendor approves autonomous restock PO: True")
 
-    graph.update_state(
+    test_graph.update_state(
         config,
         {
             "human_approved_quote": True,
@@ -119,8 +122,8 @@ def run_test(**kwargs):
     )
 
     # Resume graph execution (Node 4 will run from PostgresSaver checkpoint)
-    print(" -> Resuming Graph Execution with graph.invoke(None, config)...")
-    resumed_result = graph.invoke(None, config=config)
+    print(" -> Resuming Graph Execution with test_graph.invoke(None, config)...")
+    resumed_result = test_graph.invoke(None, config=config)
 
     print("\n[Step 5/5] Resumption Complete!")
     print(f" -> Final Status: {resumed_result.get('final_status')}")

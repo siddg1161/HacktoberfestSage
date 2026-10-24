@@ -1,5 +1,4 @@
 {
-  "$schema": "https://langgra.ph/schema.json",
   "dependencies": ["."],
   "graphs": {
     "quoteflow": "./agent/graph.py:graph"
