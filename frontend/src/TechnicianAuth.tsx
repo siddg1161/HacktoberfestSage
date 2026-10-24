@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "./api";
 import { authClient } from "./auth-client";
-import { setActiveWorker, setActiveBusiness } from "./businessContext";
+import { setActiveWorker, setActiveBusiness, useActiveWorker } from "./businessContext";
 
 type AuthIcon = "arrow" | "check" | "eye" | "eyeOff" | "file" | "store" | "lock" | "sparkle";
 
@@ -75,6 +75,7 @@ export default function TechnicianAuth({
 }: {
   onSuccess: () => void;
 }) {
+  const { worker: activeWorker, logoutWorker } = useActiveWorker();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -219,6 +220,42 @@ export default function TechnicianAuth({
                 ? "Sign in to send a new dukaan slip and voice note."
                 : "Create your technician account to start submitting jobs."}
             </p>
+
+            {activeWorker && (
+              <div className="mt-6 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/80 p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-600 text-white font-black text-base shadow-sm">
+                      {activeWorker.name?.charAt(0) || "T"}
+                    </span>
+                    <div>
+                      <span className="inline-block rounded-full bg-emerald-200/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                        Active Technician Session
+                      </span>
+                      <p className="font-extrabold text-[#17221d] text-base">{activeWorker.name}</p>
+                      <p className="text-xs text-[#55615b] font-mono">{activeWorker.email}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSuccess()}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#17221d] px-4 py-2.5 text-xs font-black text-[#caff52] hover:bg-neutral-800 transition shadow-sm"
+                  >
+                    <span>Resume Technician Portal</span>
+                    <Icon name="arrow" className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => logoutWorker()}
+                    className="rounded-xl border border-neutral-300 bg-white px-3.5 py-2 text-xs font-bold text-neutral-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition"
+                  >
+                    Switch Account
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-8 grid grid-cols-2 rounded-xl bg-[#e9ebe5] p-1">
               <button

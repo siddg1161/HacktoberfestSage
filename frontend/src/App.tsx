@@ -4,7 +4,7 @@ import TechnicianAuth from "./TechnicianAuth";
 import ShopkeeperAuth from "./ShopkeeperAuth";
 import TechnicianPortal from "./TechnicianPortal";
 import CustomerPortal from "./CustomerPortal";
-import { useActiveBusiness } from "./businessContext";
+import { useActiveBusiness, useActiveWorker, clearAllSessions } from "./businessContext";
 
 type IconName =
   | "arrow"
@@ -154,6 +154,19 @@ function Logo() {
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { business: activeBiz } = useActiveBusiness();
+  const { worker: activeWorker } = useActiveWorker();
+  const isShopkeeperLoggedIn = Boolean(activeBiz?.business_id && activeBiz.business_id.trim().length > 0);
+  const isTechnicianLoggedIn = Boolean(activeWorker?.email);
+
+  const handleSignOut = async () => {
+    try {
+      await clearAllSessions();
+    } finally {
+      window.location.hash = "";
+      window.location.reload();
+    }
+  };
+
   const [showTechnicianPortal, setShowTechnicianPortal] = useState(
     () => window.location.hash === "#technician",
   );
@@ -260,18 +273,50 @@ function App() {
             </a>
           </nav>
           <div className="hidden items-center gap-3 md:flex">
-            <a
-              className="inline-flex items-center gap-2 rounded-full border border-[#17221d]/15 bg-white px-5 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:-translate-y-0.5 hover:bg-[#f2f4ed]"
-              href="#technician-auth"
-            >
-              <span>🛠️ Login as Technician</span>
-            </a>
-            <a
-              className="inline-flex items-center gap-2 rounded-full bg-[#17221d] px-5 py-2.5 text-xs font-extrabold text-[#caff52] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#27362f]"
-              href="#shopkeeper-auth"
-            >
-              <span>🏪 Login as Shopkeeper</span>
-            </a>
+            {isTechnicianLoggedIn ? (
+              <a
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50/80 px-4 py-2.5 text-xs font-extrabold text-emerald-800 transition hover:-translate-y-0.5 hover:bg-emerald-100 shadow-xs"
+                href="#technician"
+                title={`Logged in as ${activeWorker?.name} (${activeWorker?.email})`}
+              >
+                <span>🛠️ Technician Portal ({activeWorker?.name?.split(" ")[0]})</span>
+              </a>
+            ) : (
+              <a
+                className="inline-flex items-center gap-2 rounded-full border border-[#17221d]/15 bg-white px-5 py-2.5 text-xs font-extrabold text-[#17221d] transition hover:-translate-y-0.5 hover:bg-[#f2f4ed]"
+                href="#technician-auth"
+              >
+                <span>🛠️ Login as Technician</span>
+              </a>
+            )}
+
+            {isShopkeeperLoggedIn ? (
+              <a
+                className="inline-flex items-center gap-2 rounded-full bg-[#17221d] px-5 py-2.5 text-xs font-extrabold text-[#caff52] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#27362f]"
+                href="#admin"
+                title={`Active Shopkeeper: ${activeBiz.business_name}`}
+              >
+                <span>🏪 {activeBiz.business_name || "Dashboard"}</span>
+              </a>
+            ) : (
+              <a
+                className="inline-flex items-center gap-2 rounded-full bg-[#17221d] px-5 py-2.5 text-xs font-extrabold text-[#caff52] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#27362f]"
+                href="#shopkeeper-auth"
+              >
+                <span>🏪 Login as Shopkeeper</span>
+              </a>
+            )}
+
+            {(isTechnicianLoggedIn || isShopkeeperLoggedIn) && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="rounded-full border border-neutral-300 bg-white px-3.5 py-2 text-[11px] font-bold text-neutral-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition"
+                title="Sign out of current account"
+              >
+                Sign out
+              </button>
+            )}
           </div>
           <button
             type="button"
@@ -285,25 +330,114 @@ function App() {
         </div>
         {menuOpen && (
           <nav className="absolute inset-x-4 top-[68px] flex flex-col gap-1 rounded-2xl border border-[#17221d]/10 bg-white p-3 text-sm font-bold shadow-xl md:hidden">
-            {[
-              ["How it works", "#how"],
-              ["Features", "#features"],
-              ["Privacy", "#privacy"],
-              ["🏪 Login as Shopkeeper", "#shopkeeper-auth"],
-              ["🛠️ Login as Technician", "#technician-auth"],
-            ].map(([label, href]) => (
+            <a href="#how" className="rounded-xl px-4 py-3 hover:bg-[#f2f4ed]" onClick={() => setMenuOpen(false)}>
+              How it works
+            </a>
+            <a href="#features" className="rounded-xl px-4 py-3 hover:bg-[#f2f4ed]" onClick={() => setMenuOpen(false)}>
+              Features
+            </a>
+            <a href="#privacy" className="rounded-xl px-4 py-3 hover:bg-[#f2f4ed]" onClick={() => setMenuOpen(false)}>
+              Privacy
+            </a>
+            <div className="my-1 border-t border-neutral-100" />
+            {isTechnicianLoggedIn ? (
               <a
-                key={href}
-                href={href}
+                href="#technician"
+                className="rounded-xl px-4 py-3 bg-emerald-50 font-extrabold text-emerald-800"
+                onClick={() => setMenuOpen(false)}
+              >
+                🛠️ Open Technician Portal ({activeWorker?.name})
+              </a>
+            ) : (
+              <a
+                href="#technician-auth"
                 className="rounded-xl px-4 py-3 hover:bg-[#f2f4ed]"
                 onClick={() => setMenuOpen(false)}
               >
-                {label}
+                🛠️ Login as Technician
               </a>
-            ))}
+            )}
+            {isShopkeeperLoggedIn ? (
+              <a
+                href="#admin"
+                className="rounded-xl px-4 py-3 bg-[#17221d] font-extrabold text-[#caff52]"
+                onClick={() => setMenuOpen(false)}
+              >
+                🏪 Open Shopkeeper Dashboard ({activeBiz.business_name})
+              </a>
+            ) : (
+              <a
+                href="#shopkeeper-auth"
+                className="rounded-xl px-4 py-3 hover:bg-[#f2f4ed]"
+                onClick={() => setMenuOpen(false)}
+              >
+                🏪 Login as Shopkeeper
+              </a>
+            )}
+            {(isTechnicianLoggedIn || isShopkeeperLoggedIn) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleSignOut();
+                }}
+                className="text-left rounded-xl px-4 py-3 text-rose-600 font-bold hover:bg-rose-50 transition"
+              >
+                🚪 Sign out
+              </button>
+            )}
           </nav>
         )}
       </header>
+
+      {/* Active Session Notification Bar */}
+      {(isTechnicianLoggedIn || isShopkeeperLoggedIn) && (
+        <div className="border-b border-[#17221d]/10 bg-[#17221d] text-white px-4 py-2.5 shadow-sm">
+          <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#caff52] opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#caff52]" />
+              </span>
+              {isTechnicianLoggedIn ? (
+                <span className="font-semibold text-neutral-200">
+                  Signed in as <strong className="text-white">{activeWorker?.name}</strong> ({activeBiz.business_name || "Field Team"})
+                </span>
+              ) : (
+                <span className="font-semibold text-neutral-200">
+                  Active Workspace: <strong className="text-white">{activeBiz.business_name}</strong> ({activeBiz.industry})
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {isTechnicianLoggedIn ? (
+                <a
+                  href="#technician"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#caff52] px-4 py-1.5 font-black text-[#17221d] hover:bg-[#b8eb42] transition shadow-xs"
+                >
+                  <span>Resume Technician Portal</span>
+                  <Icon name="arrow" className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <a
+                  href="#admin"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#caff52] px-4 py-1.5 font-black text-[#17221d] hover:bg-[#b8eb42] transition shadow-xs"
+                >
+                  <span>Open Shop Dashboard</span>
+                  <Icon name="arrow" className="h-3.5 w-3.5" />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-neutral-400 hover:text-rose-300 font-semibold text-[11px] transition"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main>
         <section className="relative">
@@ -334,7 +468,7 @@ function App() {
               </p>
               <div className="animate-slide-up delay-300 mt-9 flex flex-col gap-3.5 sm:flex-row">
                 <a
-                  href="#shopkeeper-auth"
+                  href={isShopkeeperLoggedIn ? "#admin" : "#shopkeeper-auth"}
                   className="shimmer-button group flex-1 inline-flex items-center justify-center gap-3.5 rounded-2xl bg-[#0f1a13] px-6 py-4 text-white shadow-[0_14px_36px_rgba(15,26,19,0.25)] transition hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,26,19,0.35)]"
                 >
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#caff52] text-[#0f1a13]">
@@ -345,13 +479,13 @@ function App() {
                       Shopkeeper / Owner
                     </span>
                     <span className="block text-[15px] font-black text-white">
-                      Sign in as Shopkeeper →
+                      {isShopkeeperLoggedIn ? `Open Dashboard (${activeBiz.business_name || "Admin"}) →` : "Sign in as Shopkeeper →"}
                     </span>
                   </div>
                 </a>
 
                 <a
-                  href="#technician-auth"
+                  href={isTechnicianLoggedIn ? "#technician" : "#technician-auth"}
                   className="group flex-1 inline-flex items-center justify-center gap-3.5 rounded-2xl border border-[#0f1a13]/15 bg-white/95 px-6 py-4 text-[#0f1a13] shadow-sm backdrop-blur transition hover:-translate-y-1 hover:bg-white hover:shadow-md"
                 >
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f2f5ed] text-[#485b1c]">
@@ -362,7 +496,7 @@ function App() {
                       On-site Team
                     </span>
                     <span className="block text-[15px] font-black text-[#0f1a13]">
-                      Sign in as Technician →
+                      {isTechnicianLoggedIn ? `Open Field Portal (${activeWorker?.name?.split(" ")[0] || "Active"}) →` : "Sign in as Technician →"}
                     </span>
                   </div>
                 </a>

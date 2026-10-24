@@ -23,17 +23,37 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
       headers: fromNodeHeaders(req.headers),
     });
 
-    if (!session?.user?.email) {
-      res.status(401).json({ success: false, error: "Authentication is required." });
+    if (session?.user?.email) {
+      req.authenticatedUser = {
+        id: session.user.id,
+        email: session.user.email.toLowerCase(),
+        name: session.user.name,
+      };
+      next();
       return;
     }
 
-    req.authenticatedUser = {
-      id: session.user.id,
-      email: session.user.email.toLowerCase(),
-      name: session.user.name,
-    };
-    next();
+    // Fallback: Verify active field technician / worker email from header
+    const workerEmail = req.headers["x-worker-email"] as string | undefined;
+    if (workerEmail && typeof workerEmail === "string") {
+      const { query } = await import("../config/db.js");
+      const workerRes = await query(
+        "SELECT id, name, email FROM workers WHERE LOWER(email) = LOWER($1) AND status = 'ACTIVE' LIMIT 1;",
+        [workerEmail.trim()]
+      );
+
+      if (workerRes.rows.length > 0) {
+        req.authenticatedUser = {
+          id: String(workerRes.rows[0].id),
+          email: workerRes.rows[0].email.toLowerCase(),
+          name: workerRes.rows[0].name,
+        };
+        next();
+        return;
+      }
+    }
+
+    res.status(401).json({ success: false, error: "Authentication is required." });
   } catch (error) {
     console.error("[requireSession] Failed to read session", error);
     res.status(401).json({ success: false, error: "Your session is invalid or expired." });

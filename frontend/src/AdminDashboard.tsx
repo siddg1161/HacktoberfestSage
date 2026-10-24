@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import InventoryDashboard from "./InventoryDashboard";
 import WorkersTab from "./WorkersTab";
-import { useActiveBusiness, getActiveWorker, isTechnicianWorker } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, isTechnicianWorker, clearAllSessions } from "./businessContext";
 import { api, DbQuote, QuoteResult } from "./api";
 
 type JobStatus = "Paid" | "Approved" | "Awaiting approval" | "Draft";
@@ -481,13 +481,18 @@ export default function AdminDashboard() {
                 👥 Team & Workers
               </button>
             </div>
-            <a
-              href="#"
-              className="hidden lg:flex items-center gap-1.5 ml-2 px-3 py-1 text-xs font-bold text-[#6a7872] hover:text-[#17221d] transition"
-              title="Return to homepage"
+            <button
+              type="button"
+              onClick={async () => {
+                await clearAllSessions();
+                window.location.hash = "";
+                window.location.reload();
+              }}
+              className="hidden lg:flex items-center gap-1.5 ml-2 px-3 py-1 text-xs font-bold text-neutral-600 hover:text-rose-600 transition"
+              title="Sign out of workspace"
             >
               Sign out
-            </a>
+            </button>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">

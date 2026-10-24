@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api, BusinessProfile, WorkerProfile } from "./api";
+import { authClient } from "./auth-client";
 
 const BIZ_STORAGE_KEY = "quoteflow_active_business";
 const WORKER_STORAGE_KEY = "quoteflow_active_worker";
@@ -85,6 +86,48 @@ export function isManagerWorker(worker: WorkerProfile | null = getActiveWorker()
 }
 
 /**
+ * React hook to reactively subscribe to the currently logged in technician across components.
+ */
+export function useActiveWorker() {
+  const [worker, setWorker] = useState<WorkerProfile | null>(() => getActiveWorker());
+
+  useEffect(() => {
+    const handleWorkerChange = (e: any) => {
+      setWorker(e.detail !== undefined ? e.detail : getActiveWorker());
+    };
+    window.addEventListener("worker-changed", handleWorkerChange);
+    return () => window.removeEventListener("worker-changed", handleWorkerChange);
+  }, []);
+
+  const logoutWorker = () => {
+    setActiveWorker(null);
+    setWorker(null);
+  };
+
+  return { worker, logoutWorker };
+}
+
+/**
+ * Clears both active worker and business from localStorage and terminates Better-Auth session cookie.
+ */
+export async function clearAllSessions(): Promise<void> {
+  try {
+    localStorage.removeItem(BIZ_STORAGE_KEY);
+    localStorage.removeItem(WORKER_STORAGE_KEY);
+    sessionStorage.clear();
+    try {
+      await authClient.signOut();
+    } catch (authErr) {
+      console.warn("Better-auth sign-out warning:", authErr);
+    }
+    window.dispatchEvent(new CustomEvent("business-changed", { detail: DEFAULT_BUSINESS }));
+    window.dispatchEvent(new CustomEvent("worker-changed", { detail: null }));
+  } catch (e) {
+    console.error("Error clearing sessions:", e);
+  }
+}
+
+/**
  * React hook to subscribe to the active business across any component.
  */
 export function useActiveBusiness() {
@@ -98,7 +141,7 @@ export function useActiveBusiness() {
       const workspace = await api.getMyWorkspace();
       // A session owns exactly one active workspace. This is deliberately not
       // a public business directory: access decisions remain on the server.
-      const list = [workspace.business];
+      const list = workspace?.business ? [workspace.business] : [];
       setAllBusinesses(list);
 
       // Verify that current business exists in list, update with fresh DB stats
@@ -112,7 +155,9 @@ export function useActiveBusiness() {
         localStorage.setItem(BIZ_STORAGE_KEY, JSON.stringify(list[0]));
       }
     } catch (e) {
-      console.warn("Could not fetch the authenticated workspace:", e);
+      // User is unauthenticated on the server, reset business state
+      setBusiness(DEFAULT_BUSINESS);
+      localStorage.removeItem(BIZ_STORAGE_KEY);
     } finally {
       setLoading(false);
     }
