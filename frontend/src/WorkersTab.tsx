@@ -12,6 +12,7 @@ export default function WorkersTab() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Field Technician");
+  const [pinCode, setPinCode] = useState("1234");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -47,14 +48,16 @@ export default function WorkersTab() {
         name: name.trim(),
         email: email.trim(),
         role: role.trim() || "Field Technician",
+        pin_code: pinCode.trim() || "1234",
       });
 
-      setSuccessMsg(`Worker ${name} added successfully!`);
+      setSuccessMsg(`Technician ${name} added! They can log in with PIN: ${pinCode.trim() || "1234"}`);
       setName("");
       setEmail("");
+      setPinCode("1234");
       setShowAddModal(false);
       await loadWorkers();
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to add worker.");
     } finally {
@@ -142,6 +145,12 @@ export default function WorkersTab() {
                       <span className="text-gray-400">Email / Login:</span>
                       <span className="font-semibold text-gray-800 truncate max-w-[180px]">{w.email || w.phone || "—"}</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Login PIN:</span>
+                      <span className="font-mono font-bold text-xs bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+                        {w.pin_code || "1234"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -208,19 +217,32 @@ export default function WorkersTab() {
               </div>
 
               <div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                    Role Title
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Lead Technician"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Role Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Lead Technician"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              </div>
 
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  4-Digit Access PIN *
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="e.g. 1234"
+                  value={pinCode}
+                  onChange={(e) => setPinCode(e.target.value)}
+                  className="w-full px-3 py-2 text-sm font-mono tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">Technician will enter their email and this PIN to log in.</p>
               </div>
 
               <div className="pt-3 flex gap-2.5">

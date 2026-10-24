@@ -242,7 +242,7 @@ export class BusinessController {
     try {
       await ensureWorkersTable();
       const { businessId } = req.params;
-      const { name, email, phone, role = "Technician" } = req.body;
+      const { name, email, phone, role = "Field Technician", pin_code = "1234" } = req.body;
 
       if (!name || (!email && !phone)) {
         res.status(400).json({
@@ -253,10 +253,10 @@ export class BusinessController {
       }
 
       const result = await query(
-        `INSERT INTO workers (business_id, name, email, phone, role) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, business_id, name, email, phone, role, status, created_at;`,
-        [businessId, name, email || null, phone || null, role]
+        `INSERT INTO workers (business_id, name, email, phone, role, pin_code) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING id, business_id, name, email, phone, role, pin_code, status, created_at;`,
+        [businessId, name.trim(), email ? email.trim() : null, phone ? phone.trim() : null, role, pin_code || "1234"]
       );
 
       res.status(201).json({
