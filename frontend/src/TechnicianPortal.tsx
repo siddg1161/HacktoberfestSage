@@ -967,147 +967,45 @@ export default function TechnicianPortal() {
             <section className="rounded-[30px] border border-[#17221d]/8 bg-white p-6 shadow-[0_20px_60px_rgba(23,34,29,0.08)] sm:p-10">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#17221d]/8 pb-6">
                 <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d6ff78] px-3 py-1 text-xs font-extrabold text-[#3b4e0d]">
-                    <CaptureIcon name="check" className="h-3.5 w-3.5" />
-                    AI Extraction & 3-Tier Analysis Complete
-                  </span>
-                  <h2 className="mt-3 text-2xl font-extrabold tracking-[-0.03em]">
-                    Quotation Preview for {quoteResult.clientName}
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d6ff78] px-3 py-1 text-xs font-extrabold text-[#3b4e0d]">
+                      <CaptureIcon name="check" className="h-3.5 w-3.5" />
+                      AI Extraction & 3-Tier Analysis Complete
+                    </span>
+                    <span className="rounded-full bg-[#f4f5ef] border border-[#17221d]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#55615b]">
+                      HITL Review Gate
+                    </span>
+                  </div>
+                  <h2 className="mt-3 text-2xl sm:text-3xl font-black text-[#17221d] tracking-[-0.03em]">
+                    Quotation for {quoteResult.clientName}
                   </h2>
-                  <p className="text-xs text-[#69736e]">
-                    Thread: <span className="font-mono">{quoteResult.threadId}</span> · Phone: {quoteResult.clientPhone}
+                  <p className="mt-1 text-xs text-[#69736e]">
+                    📞 Customer Phone: <span className="font-semibold text-[#17221d]">{quoteResult.clientPhone || "—"}</span> · Reference: <span className="font-mono text-[#17221d]">{quoteResult.threadId.slice(0, 16)}</span>
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold uppercase text-[#7a837e]">Grand Total (incl. GST)</p>
-                  <p className="text-3xl font-black text-[#0284c7]">₹{Number(quoteResult.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                <div className="rounded-2xl bg-gradient-to-br from-[#17221d] to-[#25362e] p-5 text-white shadow-md text-right sm:min-w-[220px]">
+                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#caff52]">Grand Total (incl. GST)</p>
+                  <p className="mt-0.5 text-2xl sm:text-3xl font-black text-white">
+                    ₹{Number(quoteResult.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="mt-1 text-[11px] text-white/70">
+                    Taxable: ₹{Number(quoteResult.subtotal).toFixed(2)} + GST: ₹{Number(quoteResult.gstTotal).toFixed(2)}
+                  </p>
                 </div>
-              </div>
-
-              {/* Natural Language Refinement Loop Card */}
-              <div className="mt-5 rounded-2xl border border-[#0284c7]/20 bg-gradient-to-br from-[#f0f9ff]/70 via-[#f8fafc] to-[#ecfdf5]/60 p-4 shadow-sm transition">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#0284c7] text-white text-xs shadow-sm">
-                      ✨
-                    </span>
-                    <h3 className="font-extrabold text-xs text-[#0f172a] uppercase tracking-wider">
-                      Natural Language Refinement Loop (AI Agent)
-                    </h3>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#dcfce7] px-2 py-0.5 text-[10px] font-bold text-[#166534]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#22c55e] animate-pulse" />
-                      LangGraph Node 6 &rarr; Node 2
-                    </span>
-                  </div>
-                  {isRefining && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0284c7] animate-pulse">
-                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                      Re-evaluating quote & 3-tier inventory...
-                    </span>
-                  )}
-                </div>
-
-                <p className="mt-1 text-[11px] text-[#475569]">
-                  Type instructions in plain English or Hinglish (e.g. <em>&quot;Wire coil 3 kar do and switches hata do&quot;</em>). The AI Agent re-drafts line items and loops back to real-time 3-tier inventory shortages &amp; GST calculation.
-                </p>
-
-                {/* Quick Revision Suggestion Pills */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <span className="text-[10px] font-bold uppercase text-[#94a3b8]">Quick Suggestions:</span>
-                  {[
-                    "Make wire coil qty 3 instead of 5",
-                    "Remove modular switches from quote",
-                    "Add 2 packets of PVC insulation tape",
-                    "Give 5% discount on line item rates",
-                  ].map((chip, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={isRefining}
-                      onClick={() => handleRefineQuote(chip)}
-                      className="rounded-full border border-[#cbd5e1] bg-white px-2.5 py-1 text-[11px] font-medium text-[#334155] shadow-xs hover:border-[#0284c7] hover:bg-[#f0f9ff] hover:text-[#0284c7] transition disabled:opacity-50"
-                    >
-                      ⚡ {chip}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Natural Language Input Bar */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleRefineQuote();
-                  }}
-                  className="mt-3 flex flex-col sm:flex-row gap-2"
-                >
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      disabled={isRefining}
-                      value={refinePrompt}
-                      onChange={(e) => setRefinePrompt(e.target.value)}
-                      placeholder="e.g. Wire 3 coil kar do, modular switch hata do, aur 2 roll tape add karo..."
-                      className="w-full rounded-xl border border-[#cbd5e1] bg-white px-3.5 py-2.5 text-xs text-[#0f172a] placeholder-[#94a3b8] shadow-inner outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/20 transition disabled:bg-neutral-100"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isRefining || !refinePrompt.trim()}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0284c7] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#0369a1] active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRefining ? (
-                      <>
-                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                        <span>Re-drafting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>⚡ Refine Quote with AI</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {/* AI Refinement Feedback Notification */}
-                {refineFeedback && (
-                  <div className="mt-3 flex items-start justify-between gap-2 rounded-xl border border-[#86efac] bg-[#f0fdf4] p-2.5 text-xs text-[#166534]">
-                    <div className="flex items-start gap-2">
-                      <span className="text-sm">✨</span>
-                      <div>
-                        <strong className="font-extrabold">QuoteFlow Agent: </strong>
-                        <span>{refineFeedback}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRefineFeedback(null)}
-                      className="text-[#166534]/60 hover:text-[#166534] font-bold text-xs"
-                      title="Dismiss"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Human Edit Info Banner */}
-              <div className="mt-5 flex items-center justify-between rounded-xl bg-[#f7f8f4] border border-[#17221d]/10 px-4 py-2.5">
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#f7f8f4] border border-[#17221d]/10 p-3.5">
                 <div className="flex items-center gap-2 text-xs text-[#55615b]">
                   <CaptureIcon name="edit" className="h-4 w-4 text-[#6a841d]" />
                   <span>
-                    <strong>Human Edit Mode:</strong> Click or edit quantities and rates below. Stock badges, deficits, and GST calculate in real-time.
+                    <strong>Direct Edit:</strong> Click quantities or rates below to adjust in real-time. Deficits, taxes, and POs recalculate automatically.
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowAddItem(!showAddItem)}
-                  className="flex items-center gap-1.5 rounded-lg bg-[#17221d] px-3 py-1.5 text-xs font-bold text-[#caff52] hover:bg-[#25362e] transition"
+                  className="flex items-center gap-1.5 rounded-xl bg-[#17221d] px-3.5 py-2 text-xs font-bold text-[#caff52] hover:bg-[#25362e] shadow-sm transition"
                 >
                   <CaptureIcon name="plus" className="h-3.5 w-3.5" />
                   {showAddItem ? "Cancel" : "Add Line Item"}
@@ -1288,6 +1186,27 @@ export default function TechnicianPortal() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Financial Totals Summary Bar */}
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl bg-[#fafbf9] border border-[#17221d]/8 p-4">
+                <div className="text-xs text-[#55615b]">
+                  <span className="font-bold text-[#17221d]">{quoteResult.extractedItems.length} Quoted Materials & Services</span> · Stock availability audited
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-xs sm:text-right">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#737d78] block">Taxable Subtotal</span>
+                    <span className="font-extrabold text-[#17221d]">₹{Number(quoteResult.subtotal).toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#737d78] block">GST (18%)</span>
+                    <span className="font-extrabold text-[#17221d]">₹{Number(quoteResult.gstTotal).toFixed(2)}</span>
+                  </div>
+                  <div className="pl-3 border-l border-[#17221d]/15">
+                    <span className="text-[10px] uppercase font-extrabold text-[#0284c7] block">Grand Total</span>
+                    <span className="text-base font-black text-[#0284c7]">₹{Number(quoteResult.grandTotal).toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
               {/* AI Revenue Guard Callout */}
@@ -1512,6 +1431,108 @@ export default function TechnicianPortal() {
                   </div>
                 </div>
               )}
+
+              {/* Natural Language Refinement Loop Card (AI Assistant placed at the bottom!) */}
+              <div className="mt-8 rounded-2xl border border-[#0284c7]/25 bg-gradient-to-br from-[#f0f9ff] via-[#f8fafc] to-[#ecfdf5]/70 p-5 shadow-sm transition">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#0284c7] text-white text-xs shadow-sm">
+                      ✨
+                    </span>
+                    <div>
+                      <h3 className="font-black text-xs text-[#0f172a] uppercase tracking-wider">
+                        Natural Language Refinement Assistant (AI Agent)
+                      </h3>
+                      <p className="text-[11px] text-[#475569] mt-0.5">
+                        Reviewed everything? Instruct the agent in Hinglish or English to adjust quantities, remove items, or apply revisions.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#dcfce7] border border-[#bbf7d0] px-3 py-1 text-[10px] font-black text-[#166534]">
+                    <span className="h-2 w-2 rounded-full bg-[#22c55e] animate-pulse" />
+                    LangGraph Node 6 &rarr; Node 2 Recalculation
+                  </span>
+                </div>
+
+                {isRefining && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 animate-pulse">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Re-drafting line items with Gemma 4 & recalculating 3-tier warehouse shortages...
+                  </div>
+                )}
+
+                {/* Quick Revision Suggestion Pills */}
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-[10px] font-bold uppercase text-[#94a3b8] mr-1">Quick Chips:</span>
+                  {[
+                    "Make wire coil qty 3 instead of 5",
+                    "Remove modular switches from quote",
+                    "Add 2 packets of PVC insulation tape",
+                    "Apply 5% contractor discount on rates",
+                  ].map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={isRefining}
+                      onClick={() => handleRefineQuote(chip)}
+                      className="rounded-full border border-[#cbd5e1] bg-white px-3 py-1 text-[11px] font-medium text-[#334155] shadow-xs hover:border-[#0284c7] hover:bg-[#f0f9ff] hover:text-[#0284c7] transition disabled:opacity-50"
+                    >
+                      ⚡ {chip}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Natural Language Input Bar */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRefineQuote();
+                  }}
+                  className="mt-3 flex flex-col sm:flex-row gap-2"
+                >
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      disabled={isRefining}
+                      value={refinePrompt}
+                      onChange={(e) => setRefinePrompt(e.target.value)}
+                      placeholder="e.g. Wire 3 coil kar do, modular switch hata do, aur 2 roll tape add karo..."
+                      className="w-full rounded-xl border border-[#cbd5e1] bg-white px-4 py-2.5 text-xs text-[#0f172a] placeholder-[#94a3b8] shadow-inner outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#0284c7]/20 transition disabled:bg-neutral-100"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isRefining || !refinePrompt.trim()}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0284c7] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#0369a1] active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRefining ? "Re-drafting..." : "⚡ Refine Quote with AI"}
+                  </button>
+                </form>
+
+                {/* AI Refinement Feedback Notification */}
+                {refineFeedback && (
+                  <div className="mt-3 flex items-start justify-between gap-2 rounded-xl border border-[#86efac] bg-[#f0fdf4] p-3 text-xs text-[#166534]">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">✨</span>
+                      <div>
+                        <strong className="font-extrabold">QuoteFlow Agent: </strong>
+                        <span>{refineFeedback}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRefineFeedback(null)}
+                      className="text-[#166534]/60 hover:text-[#166534] font-bold text-xs"
+                      title="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Approval & Dispatch Action Card */}
               <div className="mt-8 border-t border-[#17221d]/8 pt-6">
