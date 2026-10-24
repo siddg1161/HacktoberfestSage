@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 import { config } from "../config/env.js";
 import { pool, query } from "../config/db.js";
 
@@ -31,49 +32,124 @@ export class AgentService {
    * the Express backend executes the LangGraph pipeline with zero failure!
    */
   private static async executePythonAgent(payload: Record<string, any>): Promise<any> {
-    // 1. First, attempt to invoke remote/local HTTP agent server if AGENT_API_URL is configured
+    // 1. Invoke standard LangGraph API Server via HTTP when AGENT_API_URL is configured
     if (config.agentApiUrl) {
       try {
+        const base = config.agentApiUrl.replace(/\/+$/, "");
         const action = payload.action;
-        let url = `${config.agentApiUrl}/api/quotes/start`;
-        let method = "POST";
-        let body: any = {};
-
-        if (action === "start") {
-          url = `${config.agentApiUrl}/api/quotes/start`;
-          body = payload.initial_input || {};
-        } else if (action === "resume") {
-          url = `${config.agentApiUrl}/api/quotes/${payload.thread_id}/approve`;
-          body = payload.decisions || {};
-        } else if (action === "edit") {
-          url = `${config.agentApiUrl}/api/quotes/${payload.thread_id}/edit`;
-          method = "PUT";
-          body = { edited_line_items: payload.edited_line_items || [] };
-        }
+        const threadId = payload.thread_id;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s for LLM vision inference
 
-        const res = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
+        if (action === "start") {
+          // 1. Ensure thread exists on LangGraph server
+          await fetch(`${base}/threads`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ thread_id: threadId }),
+            signal: controller.signal,
+          }).catch(() => {});
 
-        if (res.ok) {
-          const json: any = await res.json();
-          if (json && json.success && json.data) {
-            return {
-              thread_id: payload.thread_id,
-              next: json.data.nextPendingNode || [],
-              values: json.data.values || json.data,
-            };
+          // 2. Run graph with input and wait until HITL interrupt gate
+          const runRes = await fetch(`${base}/threads/${threadId}/runs/wait`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assistant_id: "quoteflow",
+              input: payload.initial_input || {},
+            }),
+            signal: controller.signal,
+          });
+
+          if (!runRes.ok) {
+            const errBody = await runRes.text();
+            throw new Error(`LangGraph Server run failed (${runRes.status}): ${errBody}`);
           }
+
+          const runData: any = await runRes.json();
+
+          // 3. Fetch state snapshot from LangGraph server
+          const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+          });
+          const stateData: any = stateRes.ok ? await stateRes.json() : {};
+          clearTimeout(timeoutId);
+
+          return {
+            thread_id: threadId,
+            next: stateData.next || ["execute_dispatch_node"],
+            values: stateData.values || runData || {},
+          };
+        } else if (action === "resume") {
+          // 1. Update state with human vendor approvals
+          await fetch(`${base}/threads/${threadId}/state`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              values: {
+                human_approved_quote: payload.decisions?.accept_quote ?? true,
+                human_accepted_addon: payload.decisions?.accept_addon ?? true,
+                human_approved_po: payload.decisions?.approve_po ?? true,
+                edited_line_items: payload.decisions?.edited_line_items || null,
+              },
+            }),
+            signal: controller.signal,
+          });
+
+          // 2. Resume graph execution to run execute_dispatch_node
+          const resumeRes = await fetch(`${base}/threads/${threadId}/runs/wait`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assistant_id: "quoteflow",
+              input: null,
+            }),
+            signal: controller.signal,
+          });
+
+          // 3. Fetch finalized state
+          const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+          });
+          const stateData: any = stateRes.ok ? await stateRes.json() : {};
+          clearTimeout(timeoutId);
+
+          const finalValues = stateData.values || (resumeRes.ok ? await resumeRes.json() : {});
+          return {
+            thread_id: threadId,
+            next: stateData.next || [],
+            values: finalValues,
+          };
+        } else if (action === "edit") {
+          // Update line items in state
+          await fetch(`${base}/threads/${threadId}/state`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              values: {
+                edited_line_items: payload.edited_line_items || [],
+              },
+            }),
+            signal: controller.signal,
+          });
+
+          const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+          });
+          const stateData: any = stateRes.ok ? await stateRes.json() : {};
+          clearTimeout(timeoutId);
+
+          return {
+            thread_id: threadId,
+            values: stateData.values || {},
+          };
         }
       } catch (httpErr: any) {
-        console.warn(`[AgentService] HTTP agent request to ${config.agentApiUrl} note: ${httpErr.message}. Falling back to local process.`);
+        console.warn(`[AgentService] LangGraph API error (${config.agentApiUrl}): ${httpErr.message}. Falling back to local process.`);
       }
     }
 
@@ -231,7 +307,7 @@ elif action == "edit":
    * Pauses at HITL Interrupt Gate and returns the paused state snapshot.
    */
   static async startQuote(input: StartQuoteInput): Promise<any> {
-    const threadId = `quote-${Date.now()}`;
+    const threadId = randomUUID();
 
     const agentPayload = {
       action: "start",
