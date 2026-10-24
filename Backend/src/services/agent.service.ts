@@ -167,6 +167,51 @@ export class AgentService {
             thread_id: threadId,
             values: stateData.values || {},
           };
+        } else if (action === "refine") {
+          const instruction = payload.instruction || "";
+          // 1. Update state with refinement request
+          await fetch(`${base}/threads/${threadId}/state`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              values: {
+                human_decision: "refine",
+                human_edit_feedback: instruction,
+                refinement_instruction: instruction,
+              },
+            }),
+            signal: controller.signal,
+          });
+
+          // 2. Resume graph run to execute hitl_gate -> refinement_node -> Node 2 -> Node 3 -> hitl_gate
+          const resumeRes = await fetch(
+            `${base}/threads/${threadId}/runs/wait`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                assistant_id: "quoteflow",
+                input: null,
+              }),
+              signal: controller.signal,
+            },
+          );
+
+          // 3. Fetch newly recalculated state
+          const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+          });
+          const stateData: any = stateRes.ok ? await stateRes.json() : {};
+          clearTimeout(timeoutId);
+
+          const finalValues =
+            stateData.values || (resumeRes.ok ? await resumeRes.json() : {});
+          return {
+            thread_id: threadId,
+            next: stateData.next || [],
+            values: finalValues,
+          };
         }
       } catch (httpErr: any) {
         console.warn(
@@ -303,6 +348,24 @@ elif action == "edit":
             "extracted_items": edited_items
         }
     )
+    snapshot = graph.get_state(config)
+    print("OUTPUT_JSON:" + json.dumps({
+        "thread_id": thread_id,
+        "next": list(snapshot.next),
+        "values": snapshot.values
+    }, default=str))
+
+elif action == "refine":
+    instruction = payload.get("instruction", "")
+    graph.update_state(
+        config=config,
+        values={
+            "human_decision": "refine",
+            "human_edit_feedback": instruction,
+            "refinement_instruction": instruction,
+        }
+    )
+    graph.invoke(None, config=config)
     snapshot = graph.get_state(config)
     print("OUTPUT_JSON:" + json.dumps({
         "thread_id": thread_id,
@@ -447,6 +510,37 @@ elif action == "edit":
         values.posIssued ||
         values.dispatchResults?.pos_issued ||
         [],
+    };
+  }
+
+  /**
+   * Natural Language Refinement Loop:
+   * Sends user revision instructions to LLM refinement node,
+   * loops back to Node 2 (inventory & GST) + Node 3 (revenue guard & POs),
+   * and returns the newly recalculated quote.
+   */
+  static async refineQuote(threadId: string, instruction: string): Promise<any> {
+    const res = await this.executePythonAgent({
+      action: "refine",
+      thread_id: threadId,
+      instruction,
+    });
+    const values = res.values || {};
+
+    return {
+      threadId,
+      status: "PAUSED_AT_HITL_GATE",
+      nextPendingNode: res.next || [],
+      extractedItems: values.extracted_items || values.extractedItems || [],
+      subtotal: Number(values.subtotal ?? values.subTotal ?? 0),
+      gstTotal: Number(values.gst_total ?? values.gstTotal ?? 0),
+      grandTotal: Number(values.grand_total ?? values.grandTotal ?? 0),
+      aiRevenueAlert: values.ai_revenue_alert || values.aiRevenueAlert || null,
+      restockPoDrafts: values.restock_po_drafts || values.restockPoDrafts || [],
+      refinementExplanation:
+        values.refinement_explanation ||
+        values.refinementExplanation ||
+        "Quote re-drafted and inventory/GST recalculated based on your request.",
     };
   }
 

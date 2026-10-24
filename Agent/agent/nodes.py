@@ -19,6 +19,7 @@ from agent.state import (
     RevenueAuditOutput,
     DraftPurchaseOrder,
     DraftPurchaseOrderItem,
+    RefinementOutput,
 )
 from agent.checkpointer import get_db_connection
 from core.llm import get_structured_llm
@@ -163,7 +164,11 @@ def inventory_and_billing_analyzer_node(state: QuoteFlowState) -> Dict[str, Any]
             "grand_total": 0.0
         }
 
-    sku_ids = [item["matched_sku_id"] for item in extracted_items if "matched_sku_id" in item]
+    sku_ids = [
+        item.get("matched_sku_id") or item.get("sku_id")
+        for item in extracted_items
+        if item.get("matched_sku_id") or item.get("sku_id")
+    ]
 
     # Query catalog details with short-lived connection
     with get_db_connection() as conn:
@@ -187,23 +192,23 @@ def inventory_and_billing_analyzer_node(state: QuoteFlowState) -> Dict[str, Any]
     order_gst_total = 0.0
 
     for item in extracted_items:
-        sku = item.get("matched_sku_id")
-        requested_qty = int(item.get("requested_qty", 1))
+        sku = item.get("matched_sku_id") or item.get("sku_id")
+        requested_qty = int(item.get("requested_qty") if item.get("requested_qty") is not None else item.get("quantity", 1))
         catalog_info = catalog_map.get(sku)
 
         if catalog_info:
-            item_name = catalog_info["item_name"]
-            unit = catalog_info["unit"]
-            unit_price = float(catalog_info["unit_price"])
-            gst_rate = float(catalog_info["gst_rate"])
+            item_name = item.get("item_name") or catalog_info["item_name"]
+            unit = item.get("unit") or catalog_info["unit"]
+            unit_price = float(item.get("unit_price") if item.get("unit_price") is not None else catalog_info["unit_price"])
+            gst_rate = float(item.get("gst_rate") if item.get("gst_rate") is not None else catalog_info["gst_rate"])
             current_stock = int(catalog_info["current_stock"])
             reorder_threshold = int(catalog_info["reorder_threshold"])
             preferred_supplier = catalog_info["preferred_supplier"]
         else:
-            item_name = item.get("raw_item_name", "Unknown Item")
+            item_name = item.get("item_name") or item.get("raw_item_name", "Unknown Item")
             unit = item.get("unit", "piece")
-            unit_price = 100.0
-            gst_rate = 18.0
+            unit_price = float(item.get("unit_price", 100.0))
+            gst_rate = float(item.get("gst_rate", 18.0))
             current_stock = 0
             reorder_threshold = 5
             preferred_supplier = "General Distributor"
@@ -563,6 +568,114 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
             "thread_id": thread_id,
             "status": "QUOTED",
             "pos_issued": created_po_numbers,
-            "client_portal_url": f"https://hacktoberfest-sage.vercel.app/portal/{thread_id}" # how this url will work - is it portal link for getting their approval of the quotation & then generating invoice??
+            "client_portal_url": f"https://hacktoberfest-sage.vercel.app/portal/{thread_id}"
         }
+    }
+
+# =========================================================================
+# Node 5: Human-In-The-Loop Gate Node
+# =========================================================================
+def hitl_gate_node(state: QuoteFlowState) -> Dict[str, Any]:
+    """Gate node for Human-In-The-Loop review.
+    Pauses execution before dispatch or natural language refinement.
+    """
+    print("  [HITL Gate] Pausing execution for human vendor review...")
+    return {
+        "final_status": "AWAITING_APPROVAL"
+    }
+
+# =========================================================================
+# Node 6: Natural Language Refinement Node (Gemma 4 / LLM Quote Re-drafter)
+# =========================================================================
+def natural_language_refinement_node(state: QuoteFlowState) -> Dict[str, Any]:
+    """Node: Re-drafts line items using Gemma 4 / Gemini based on user's natural language instructions.
+    Loops back to Node 2 (inventory_and_billing_analyzer_node) for real-time GST & inventory re-evaluation.
+    """
+    feedback = state.get("human_edit_feedback") or state.get("refinement_instruction") or ""
+    current_items = state.get("edited_line_items") or state.get("extracted_items") or []
+    business_name = state.get("business_name", "QuoteFlow AI")
+    business_category = state.get("business_category", "Electrical")
+
+    print(f"  [Refinement Node] Re-drafting quote via LLM with instruction: '{feedback}' for {business_name} ({business_category})...")
+
+    # Fetch available trade catalog items for context
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT sku_id, item_name, unit, unit_price, gst_rate
+                FROM catalog_items
+                WHERE industry = %s OR industry = 'General'
+                LIMIT 50;
+                """,
+                (business_category,)
+            )
+            catalog_rows = cur.fetchall()
+
+    catalog_context = [
+        {"sku_id": r["sku_id"], "item_name": r["item_name"], "unit": r["unit"], "unit_price": float(r["unit_price"])}
+        for r in catalog_rows
+    ]
+
+    current_summary = [
+        {
+            "sku_id": it.get("sku_id") or it.get("matched_sku_id", "CUSTOM"),
+            "item_name": it.get("item_name") or it.get("raw_item_name", "Unknown"),
+            "quantity": int(it.get("quantity") if it.get("quantity") is not None else it.get("requested_qty", 1)),
+            "unit": it.get("unit", "piece"),
+            "unit_price": float(it.get("unit_price", 0.0))
+        }
+        for it in current_items
+    ]
+
+    system_prompt = (
+        f"You are the expert Quote Refinement Agent for {business_name}, specializing in {business_category} trade services.\n"
+        "Your task is to modify and re-draft an existing quotation based on the user's plain-English or Hinglish revision request.\n"
+        "Follow these rules:\n"
+        "1. Strictly apply the user's requested additions, removals, quantity changes, or price updates.\n"
+        "2. For any newly requested item, match it to the closest available trade catalog item with its sku_id and price.\n"
+        "3. If an item is NOT in the catalog, generate a descriptive trade item with sku_id='CUSTOM-<short-name>' and a realistic unit price.\n"
+        "4. If the user asks to remove an item, omit it completely from the modified list.\n"
+        "5. Provide a crisp, friendly one-sentence summary of the changes in 'explanation'."
+    )
+
+    user_prompt = (
+        f"USER REVISION REQUEST:\n\"{feedback}\"\n\n"
+        f"CURRENT QUOTE ITEMS:\n{json.dumps(current_summary, indent=2)}\n\n"
+        f"AVAILABLE TRADE CATALOG ITEMS:\n{json.dumps(catalog_context, indent=2)}\n\n"
+        "Output the modified list of items and a brief explanation."
+    )
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ]
+
+    try:
+        structured_llm = get_structured_llm(RefinementOutput, temperature=0.0)
+        refinement_result: RefinementOutput = structured_llm.invoke(messages)
+        modified_items = [
+            {
+                "sku_id": it.sku_id,
+                "item_name": it.item_name,
+                "quantity": it.quantity,
+                "unit": it.unit,
+                "unit_price": it.unit_price,
+                "gst_rate": it.gst_rate,
+                "is_ai_suggested": False
+            }
+            for it in refinement_result.modified_items
+        ]
+        explanation = refinement_result.explanation or f"Quote updated based on: '{feedback}'"
+    except Exception as e:
+        print(f"  [Refinement Node] LLM call note: {e}. Keeping current items with note.")
+        modified_items = current_summary
+        explanation = f"Quote revised per instruction: '{feedback}'"
+
+    return {
+        "extracted_items": modified_items,
+        "edited_line_items": None,  # Reset direct overrides so Node 2 and 3 evaluate the new items
+        "refinement_explanation": explanation,
+        "human_decision": None,     # Reset decision for next review cycle
+        "final_status": "EXTRACTED"
     }

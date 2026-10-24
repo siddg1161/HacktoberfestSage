@@ -10,6 +10,9 @@ router.post("/start", requireSession, QuoteController.startQuote);
 // Human vendor approval (Resumes post-HITL)
 router.post("/:threadId/approve", requireSession, QuoteController.approveQuote);
 
+// Natural Language Refinement Loop (re-drafts quote via LLM and loops back to Node 2)
+router.post("/:threadId/refine", requireSession, QuoteController.refineQuote);
+
 // Human vendor edit (updates quantities, rates, line items)
 router.put("/:threadId/edit", requireSession, QuoteController.editQuote);
 

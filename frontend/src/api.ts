@@ -99,6 +99,7 @@ export interface QuoteResult {
   grandTotal: number;
   aiRevenueAlert: AiRevenueAlert | null;
   restockPoDrafts: RestockPoDraft[];
+  refinementExplanation?: string;
 }
 
 export interface DbQuote {
@@ -198,6 +199,18 @@ export const api = {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Failed to update quote");
+    return json.data;
+  },
+
+  // 2c. Natural Language Refinement Loop (Re-drafts quote via LLM and loops back to Node 2)
+  async refineQuote(threadId: string, instruction: string): Promise<QuoteResult> {
+    const res = await apiFetch(`${API_BASE}/api/quotes/${threadId}/refine`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instruction }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Failed to refine quote");
     return json.data;
   },
 

@@ -91,6 +91,42 @@ export class QuoteController {
   }
 
   /**
+   * POST /api/quotes/:threadId/refine
+   * Natural Language Refinement Loop:
+   * Accepts plain text / Hinglish revision instructions, re-drafts line items via LLM,
+   * loops back to Node 2 (inventory & GST) + Node 3 (revenue guard & POs).
+   */
+  static async refineQuote(req: Request, res: Response): Promise<void> {
+    try {
+      const { threadId } = req.params;
+      const { instruction } = req.body;
+
+      if (!instruction || typeof instruction !== "string") {
+        res.status(400).json({
+          success: false,
+          error: "A natural language 'instruction' string is required.",
+        });
+        return;
+      }
+
+      console.log(`[QuoteController] Refining quotation for thread ${threadId}: "${instruction}"...`);
+      const result = await AgentService.refineQuote(threadId, instruction.trim());
+
+      res.status(200).json({
+        success: true,
+        message: "Quotation successfully re-drafted and inventory/GST recalculated.",
+        data: result,
+      });
+    } catch (error: any) {
+      console.error("[QuoteController] refineQuote error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to refine quotation with AI Agent.",
+      });
+    }
+  }
+
+  /**
    * PUT /api/quotes/:threadId/edit
    * Human edit: updates line items (quantities, rates, item additions/deletions)
    * in both LangGraph checkpoint and Neon DB.

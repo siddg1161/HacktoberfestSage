@@ -180,6 +180,44 @@ def edit_quote(thread_id: str, payload: EditQuoteRequest):
         print(f"[edit_quote error]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class RefineQuoteRequest(BaseModel):
+    instruction: str
+
+@app.post("/api/quotes/{thread_id}/refine")
+def refine_quote(thread_id: str, payload: RefineQuoteRequest):
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        graph.update_state(
+            config=config,
+            values={
+                "human_decision": "refine",
+                "human_edit_feedback": payload.instruction,
+                "refinement_instruction": payload.instruction,
+            }
+        )
+        resumed = graph.invoke(None, config=config)
+        snapshot = graph.get_state(config)
+        vals = snapshot.values
+
+        return {
+            "success": True,
+            "data": {
+                "threadId": thread_id,
+                "status": "AWAITING_APPROVAL",
+                "extractedItems": vals.get("extracted_items", []),
+                "subtotal": vals.get("subtotal", 0),
+                "gstTotal": vals.get("gst_total", 0),
+                "grandTotal": vals.get("grand_total", 0),
+                "aiRevenueAlert": vals.get("ai_revenue_alert"),
+                "restockPoDrafts": vals.get("restock_po_drafts", []),
+                "refinementExplanation": vals.get("refinement_explanation", ""),
+                "values": vals,
+            }
+        }
+    except Exception as e:
+        print(f"[refine_quote error]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

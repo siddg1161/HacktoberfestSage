@@ -221,6 +221,15 @@ This document provides a comprehensive, file-by-file record of all architectural
   - "Delete PO" option and "Save PO Changes" button.
 - **Neon DB & LangGraph State Persistence:** Updated `Backend/src/services/agent.service.ts` and `Backend/src/controllers/quote.controller.ts` to forward `edited_po_drafts` and `accepted_addon_skus` to LangGraph state, inserting the exact vendor-approved POs into `supplier_purchase_orders`.
 
+### 4.3. Natural Language Refinement Loop (`hitl_gate_node` -> `refinement_node` -> Node 2)
+- **Natural Language Revision Input:** Field technicians and shopkeepers can revise drafted quotes using plain English or Hinglish (e.g. *"Wire 3 coil kar do and modular switches hata do, and add 2 packets of PVC tape"*).
+- **LLM Refinement Node (`natural_language_refinement_node`):** Interprets natural language changes against current line items and trade catalog using Gemma 4 / Gemini, outputting updated items with a concise explanation.
+- **Dynamic LangGraph Loopback:** Routes directly from `refinement_node` back into **Node 2** (`inventory_and_billing_analyzer_node`), which re-evaluates 3-tier inventory shortages and exact GST math in real time.
+- **Continuous Audit:** Re-evaluates **Node 3** (`revenue_and_procurement_node`) to refresh companion add-ons and drafted restock POs, pausing again before `hitl_gate_node` for human review.
+- **REST Endpoints & Client Integration:**
+  - `POST /api/quotes/:threadId/refine` in Express Backend and FastAPI Agent daemon.
+  - Client method `api.refineQuote()` with live interactive UI bar and quick suggestion pills in `TechnicianPortal.tsx`.
+
 ---
 
 ## 📊 Summary of Modified vs. New Files

@@ -141,6 +141,27 @@ class DraftPurchaseOrder(BaseModel):
     )
 
 # -------------------------------------------------------------------------
+# Schema C: Pydantic Output for Refinement Node
+# -------------------------------------------------------------------------
+class RefinedItem(BaseModel):
+    sku_id: str = Field(description="Catalog SKU identifier or CUSTOM-<name>")
+    item_name: str = Field(description="Descriptive item name")
+    quantity: int = Field(ge=1, default=1, description="Quantity")
+    unit: str = Field(default="piece", description="Unit of measurement (coil, piece, pipe, etc.)")
+    unit_price: float = Field(ge=0.0, description="Unit rate in currency")
+    gst_rate: float = Field(default=18.0, description="GST rate percentage")
+
+class RefinementOutput(BaseModel):
+    modified_items: List[RefinedItem] = Field(
+        default_factory=list,
+        description="The updated list of line items after applying the user's natural language request"
+    )
+    explanation: str = Field(
+        default="",
+        description="Clear one-sentence explanation of changes made to the quote"
+    )
+
+# -------------------------------------------------------------------------
 # Master LangGraph State
 # -------------------------------------------------------------------------
 class EnrichedLineItem(TypedDict, total=False):
@@ -195,7 +216,16 @@ class QuoteFlowState(TypedDict, total=False):
 
     edited_line_items: Optional[List[Dict[str, Any]]] # Direct seller edits from UI table
     human_edit_feedback: Optional[str]                # Natural language instructions from seller
+    refinement_instruction: Optional[str]             # Natural language revision prompt
+    refinement_explanation: Optional[str]             # AI explanation of revision
+    human_decision: Optional[str]                     # "approve" or "refine"
     
+    # Business Tenant Context
+    business_name: Optional[str]
+    business_category: Optional[str]
+    worker_name: Optional[str]
+    currency_symbol: Optional[str]
+
     # Node 4 final execution status
     final_status: Literal["INIT", "EXTRACTED", "AWAITING_APPROVAL", "QUOTED_AND_DISPATCHED", "FAILED"]
     dispatch_results: Optional[Dict[str, Any]]
