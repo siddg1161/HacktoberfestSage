@@ -67,7 +67,7 @@ export async function requireBusinessMember(req: Request, res: Response, next: N
   }
 }
 
-/** Only owners and managers may change a team's roster or business data. */
+/** Only owners and managers may change a team's roster, warehouse, or inventory data. */
 export async function requireBusinessManager(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!req.authenticatedUser) {
     res.status(401).json({ success: false, error: "Authentication is required." });
@@ -79,13 +79,25 @@ export async function requireBusinessManager(req: Request, res: Response, next: 
     const businessId = req.params.businessId;
     const membership = await query(
       `SELECT role FROM workers
-       WHERE business_id = $1 AND LOWER(email) = LOWER($2) AND status = 'ACTIVE'
+       WHERE ($1::text IS NULL OR business_id = $1)
+         AND LOWER(email) = LOWER($2)
+         AND status = 'ACTIVE'
+       ORDER BY id ASC
        LIMIT 1`,
-      [businessId, req.authenticatedUser.email]
+      [businessId || null, req.authenticatedUser.email]
     );
+
+    if (membership.rows.length === 0) {
+      res.status(403).json({ success: false, error: "Access denied: You do not belong to an active business workspace." });
+      return;
+    }
+
     const role = String(membership.rows[0]?.role || "").toLowerCase();
     if (!role.includes("owner") && !role.includes("manager")) {
-      res.status(403).json({ success: false, error: "Only a business owner or manager may perform this action." });
+      res.status(403).json({
+        success: false,
+        error: "Access denied. Warehouse inventory, purchase orders, and admin controls are restricted to business owners and managers.",
+      });
       return;
     }
     next();

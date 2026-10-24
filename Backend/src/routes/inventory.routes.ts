@@ -7,6 +7,12 @@ const router = Router();
 // Live inventory catalog with stock levels and safety thresholds
 router.get("/catalog", requireSession, InventoryController.getCatalog);
 
+// Bulk import catalog items from Excel / CSV
+router.post("/catalog/bulk", requireSession, InventoryController.bulkImportCatalogItems);
+
+// Clear dummy or old catalog items
+router.delete("/catalog/clear", requireSession, InventoryController.clearCatalog);
+
 // Business owner inventory editing: update item, create item, delete item
 router.put("/catalog/:skuId", requireSession, InventoryController.updateCatalogItem);
 router.post("/catalog", requireSession, InventoryController.createCatalogItem);

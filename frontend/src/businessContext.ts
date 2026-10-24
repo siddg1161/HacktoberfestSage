@@ -67,6 +67,24 @@ export function setActiveWorker(worker: WorkerProfile | null): void {
 }
 
 /**
+ * Returns true if the worker is a field technician (and NOT an owner or manager).
+ */
+export function isTechnicianWorker(worker: WorkerProfile | null = getActiveWorker()): boolean {
+  if (!worker) return false;
+  const role = (worker.role || "").toLowerCase();
+  return !role.includes("owner") && !role.includes("manager");
+}
+
+/**
+ * Returns true if the worker has business owner or manager privileges.
+ */
+export function isManagerWorker(worker: WorkerProfile | null = getActiveWorker()): boolean {
+  if (!worker) return false;
+  const role = (worker.role || "").toLowerCase();
+  return role.includes("owner") || role.includes("manager");
+}
+
+/**
  * React hook to subscribe to the active business across any component.
  */
 export function useActiveBusiness() {

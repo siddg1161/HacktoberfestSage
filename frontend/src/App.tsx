@@ -246,7 +246,7 @@ function App() {
         <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
           <div className="flex items-center gap-4">
             <Logo />
-            
+
           </div>
           <nav className="hidden items-center gap-8 text-sm font-semibold text-[#4d5953] md:flex">
             <a className="transition-colors hover:text-[#17221d]" href="#how">

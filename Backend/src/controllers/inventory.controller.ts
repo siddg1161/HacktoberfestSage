@@ -293,4 +293,52 @@ export class InventoryController {
       });
     }
   }
+
+  /**
+   * POST /api/inventory/catalog/bulk
+   * Bulk import items from Excel or manual multi-entry.
+   */
+  static async bulkImportCatalogItems(req: Request, res: Response): Promise<void> {
+    try {
+      const items = req.body?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ success: false, error: "items array is required." });
+        return;
+      }
+      const result = await InventoryService.bulkUpsertCatalogItems(items);
+      res.status(200).json({
+        success: true,
+        message: `Successfully imported ${result.count} inventory items.`,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error("[InventoryController] bulkImportCatalogItems error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to bulk import items.",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/inventory/catalog/clear
+   * Clears dummy or outdated catalog items.
+   */
+  static async clearCatalog(req: Request, res: Response): Promise<void> {
+    try {
+      const industry = typeof req.query.industry === "string" ? req.query.industry : undefined;
+      const count = await InventoryService.clearCatalogItems(industry);
+      res.status(200).json({
+        success: true,
+        message: `Cleared ${count} items from inventory catalog.`,
+        count,
+      });
+    } catch (error: any) {
+      console.error("[InventoryController] clearCatalog error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to clear catalog.",
+      });
+    }
+  }
 }

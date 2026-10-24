@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { api, QuoteResult, CatalogItem, ExtractedItem, RestockPoDraft } from "./api";
-import { useActiveBusiness, getActiveWorker } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, setActiveWorker } from "./businessContext";
 
 type CaptureIcon =
   | "arrow"
@@ -344,12 +344,12 @@ export default function TechnicianPortal() {
     const timers: any[] = [];
     timers.push(
       setTimeout(() => {
-        setProcessingStep("Node 2: Checking 3-Tier warehouse stock & computing GST...");
+        setProcessingStep("Node 2: Matching catalog rates & computing GST...");
       }, 3500)
     );
     timers.push(
       setTimeout(() => {
-        setProcessingStep("Node 3: Auditing companion services & drafting restock POs...");
+        setProcessingStep("Node 3: Auditing companion services & preparing quote draft...");
       }, 7500)
     );
 
@@ -895,20 +895,16 @@ export default function TechnicianPortal() {
             <Brand />
           </button>
           <div className="flex items-center gap-3">
-            <a
-              href="#inventory"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-[#17221d]/15 bg-white px-3.5 py-1.5 text-xs font-extrabold text-[#17221d] transition hover:bg-[#f4f5ef]"
-            >
-              📦 Warehouse & Stock
-            </a>
             <button
               type="button"
               onClick={() => {
-                window.location.hash = "#admin";
+                setActiveWorker(null);
+                window.location.hash = "";
               }}
-              className="mr-2 text-xs font-bold text-[#55615b] transition hover:text-[#17221d]"
+              className="mr-2 text-xs font-bold text-[#55615b] transition hover:text-rose-600"
+              title="Sign out of technician workspace"
             >
-              Admin Dashboard →
+              Sign out
             </button>
             <div className="hidden text-right sm:block">
               <p className="text-xs font-extrabold">{techName}</p>
@@ -932,7 +928,7 @@ export default function TechnicianPortal() {
               Send your dukaan slip & voice
             </h1>
             <p className="mt-2 text-sm text-[#69736e] sm:text-base">
-              Snap a job slip or speak in Hinglish. QuoteFlow AI cross-references warehouse stock and generates the quote.
+              Snap a job slip or speak in Hinglish. DukaanPay automatically identifies items, quantities, and computes GST quotes.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#77817c]">
@@ -942,13 +938,12 @@ export default function TechnicianPortal() {
             Input slip
             <span className="mx-1 h-px w-6 bg-[#17221d]/15" />
             <span
-              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] ${
-                status === "sent" ? "bg-[#17221d] text-white" : "bg-[#e0e3dc]"
-              }`}
+              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] ${status === "sent" ? "bg-[#17221d] text-white" : "bg-[#e0e3dc]"
+                }`}
             >
               2
             </span>
-            AI Quote & POs
+            Review Quote
           </div>
         </div>
 
@@ -1093,7 +1088,7 @@ export default function TechnicianPortal() {
                 </div>
               )}
 
-              {/* 3-Tier Inventory Quoted Items Table */}
+              {/* Quoted Items Table */}
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -1103,19 +1098,11 @@ export default function TechnicianPortal() {
                       <th className="pb-3 text-right">Rate (₹)</th>
                       <th className="pb-3 text-right">GST</th>
                       <th className="pb-3 text-right">Total</th>
-                      <th className="pb-3 text-center">3-Tier Stock Status</th>
                       <th className="pb-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#17221d]/6">
                     {quoteResult.extractedItems.map((item, idx) => {
-                      const tierBadge =
-                        item.stock_tier === "HEALTHY"
-                          ? "bg-[#ecfdf5] text-[#047857]"
-                          : item.stock_tier === "THRESHOLD_WARNING"
-                          ? "bg-[#fffbeb] text-[#b45309]"
-                          : "bg-[#fef2f2] text-[#b91c1c]";
-
                       return (
                         <tr key={idx} className="hover:bg-[#fbfcf8] transition-colors">
                           <td className="py-3 font-semibold text-[#17221d]">
@@ -1166,11 +1153,6 @@ export default function TechnicianPortal() {
                             ₹{Number(item.gst_amount).toFixed(2)} ({item.gst_rate}%)
                           </td>
                           <td className="py-3 text-right font-black text-[#17221d]">₹{Number(item.line_total).toFixed(2)}</td>
-                          <td className="py-3 text-center">
-                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${tierBadge}`}>
-                              {item.stock_tier.replace("_", " ")}
-                            </span>
-                          </td>
                           <td className="py-3 text-center">
                             <button
                               type="button"
@@ -1246,11 +1228,10 @@ export default function TechnicianPortal() {
                           return (
                             <div
                               key={aIdx}
-                              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition ${
-                                inQuote
+                              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition ${inQuote
                                   ? "bg-[#ecfdf5] border-[#86efac]"
                                   : "bg-white border-[#fef3c7] hover:border-[#fde68a]"
-                              }`}
+                                }`}
                             >
                               <div className="min-w-[180px] flex-1">
                                 <div className="flex items-center gap-2">
@@ -1324,11 +1305,10 @@ export default function TechnicianPortal() {
                                 <button
                                   type="button"
                                   onClick={() => handleToggleAddonToQuote(aIdx)}
-                                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-xs ${
-                                    inQuote
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-xs ${inQuote
                                       ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
                                       : "bg-[#047857] text-white hover:bg-[#065f46]"
-                                  }`}
+                                    }`}
                                 >
                                   {inQuote ? "Remove" : "+ Add to Quote"}
                                 </button>
@@ -1379,11 +1359,10 @@ export default function TechnicianPortal() {
                                     </span>
                                   </div>
                                   <span
-                                    className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                                      po.urgency === "INSTANT_ORDER"
+                                    className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${po.urgency === "INSTANT_ORDER"
                                         ? "bg-rose-100 text-rose-700 border border-rose-200"
                                         : "bg-blue-100 text-blue-700 border border-blue-200"
-                                    }`}
+                                      }`}
                                   >
                                     {po.urgency.replace("_", " ")}
                                   </span>
@@ -1735,16 +1714,14 @@ export default function TechnicianPortal() {
                   <button
                     type="button"
                     onClick={toggleSpeechRecognition}
-                    className={`flex items-center justify-center gap-3 rounded-2xl border p-4 transition ${
-                      isListening
+                    className={`flex items-center justify-center gap-3 rounded-2xl border p-4 transition ${isListening
                         ? "border-[#f43f5e] bg-[#fff1f2] animate-pulse"
                         : "border-[#17221d]/10 bg-[#fafbf8] hover:border-[#86a82c]"
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`grid h-11 w-11 place-items-center rounded-full ${
-                        isListening ? "bg-[#f43f5e] text-white" : "bg-[#d6ff78] text-[#17221d]"
-                      }`}
+                      className={`grid h-11 w-11 place-items-center rounded-full ${isListening ? "bg-[#f43f5e] text-white" : "bg-[#d6ff78] text-[#17221d]"
+                        }`}
                     >
                       <CaptureIcon name={isListening ? "stop" : "mic"} />
                     </span>
@@ -1763,9 +1740,8 @@ export default function TechnicianPortal() {
                     <button
                       type="button"
                       onClick={toggleRecording}
-                      className={`flex flex-1 items-center justify-center gap-3 rounded-2xl border p-4 transition ${
-                        recording ? "border-[#ff8c80] bg-[#fff0ed]" : "border-[#17221d]/10 bg-[#fafbf8]"
-                      }`}
+                      className={`flex flex-1 items-center justify-center gap-3 rounded-2xl border p-4 transition ${recording ? "border-[#ff8c80] bg-[#fff0ed]" : "border-[#17221d]/10 bg-[#fafbf8]"
+                        }`}
                     >
                       <span className="grid h-11 w-11 place-items-center rounded-full bg-[#e9ece4]">
                         <CaptureIcon name={recording ? "stop" : "headphones"} />
@@ -1843,9 +1819,8 @@ export default function TechnicianPortal() {
                       Dukaan slip photo
                     </span>
                     <span
-                      className={`grid h-5 w-5 place-items-center rounded-full ${
-                        dukaanSlip ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
-                      }`}
+                      className={`grid h-5 w-5 place-items-center rounded-full ${dukaanSlip ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
+                        }`}
                     >
                       {dukaanSlip && <CaptureIcon name="check" className="h-3 w-3" />}
                     </span>
@@ -1856,9 +1831,8 @@ export default function TechnicianPortal() {
                       Hinglish Voice Note
                     </span>
                     <span
-                      className={`grid h-5 w-5 place-items-center rounded-full ${
-                        transcript || audio ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
-                      }`}
+                      className={`grid h-5 w-5 place-items-center rounded-full ${transcript || audio ? "bg-[#caff52] text-[#17221d]" : "border border-white/20"
+                        }`}
                     >
                       {(transcript || audio) && <CaptureIcon name="check" className="h-3 w-3" />}
                     </span>
@@ -1964,22 +1938,20 @@ export default function TechnicianPortal() {
                     <button
                       type="button"
                       onClick={() => setPoEditForm({ ...poEditForm, urgency: "STANDARD_RESTOCK" })}
-                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
-                        poEditForm.urgency === "STANDARD_RESTOCK"
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${poEditForm.urgency === "STANDARD_RESTOCK"
                           ? "bg-blue-50 border-blue-500 text-blue-700"
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                      }`}
+                        }`}
                     >
                       📦 Standard Buffer
                     </button>
                     <button
                       type="button"
                       onClick={() => setPoEditForm({ ...poEditForm, urgency: "INSTANT_ORDER" })}
-                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
-                        poEditForm.urgency === "INSTANT_ORDER"
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${poEditForm.urgency === "INSTANT_ORDER"
                           ? "bg-rose-50 border-rose-500 text-rose-700"
                           : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                      }`}
+                        }`}
                     >
                       🚨 Instant Deficit
                     </button>

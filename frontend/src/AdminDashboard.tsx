@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import InventoryDashboard from "./InventoryDashboard";
 import WorkersTab from "./WorkersTab";
-import { useActiveBusiness } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, isTechnicianWorker } from "./businessContext";
 import { api, DbQuote, QuoteResult } from "./api";
 
 type JobStatus = "Paid" | "Approved" | "Awaiting approval" | "Draft";
@@ -131,6 +131,9 @@ function StatusBadge({ status }: { status: JobStatus }) {
 
 export default function AdminDashboard() {
   const { business: activeBiz } = useActiveBusiness();
+  const activeWorker = getActiveWorker();
+  const isTechnician = isTechnicianWorker(activeWorker);
+
   const [jobsList, setJobsList] = useState<Job[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"All" | JobStatus>("All");
@@ -138,7 +141,36 @@ export default function AdminDashboard() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [exported, setExported] = useState(false);
-  const [activeTab, setActiveTab] = useState<"jobs" | "team">("jobs");
+  const [activeTab, setActiveTab] = useState<"jobs" | "inventory" | "team">("jobs");
+
+  // ACCESS CONTROL: Technicians must not view Admin Dashboard or Warehouse Inventory
+  if (isTechnician) {
+    return (
+      <div className="min-h-screen bg-[#f4f5ef] flex items-center justify-center p-6 text-[#17221d]">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-rose-100 shadow-xl text-center">
+          <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl font-black mb-4">
+            ⛔
+          </div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Access Restricted</h2>
+          <p className="mt-3 text-sm text-gray-600 leading-relaxed">
+            The <strong>Admin Dashboard</strong> and <strong>Warehouse &amp; Inventory</strong> are strictly restricted to business owners and managers.
+          </p>
+          <div className="mt-4 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-700 border border-gray-100">
+            Current Profile: <span className="text-gray-900 font-bold">{activeWorker?.name}</span> ({activeWorker?.role || "Technician"})
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.hash = "#technician";
+            }}
+            className="mt-6 w-full py-3 px-6 rounded-full bg-[#17221d] text-[#caff52] font-black text-xs shadow hover:bg-black transition"
+          >
+            ← Return to Technician Workspace
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Add Technician Modal state
   const [showAddTechModal, setShowAddTechModal] = useState(false);
@@ -428,6 +460,17 @@ export default function AdminDashboard() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab("inventory")}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                  activeTab === "inventory"
+                    ? "bg-[#17221d] text-white shadow-sm"
+                    : "text-[#59645f] hover:text-[#17221d]"
+                }`}
+              >
+                📦 Warehouse & Inventory
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("team")}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
                   activeTab === "team"
@@ -458,7 +501,20 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10">
+      {activeTab === "inventory" && (
+        <div className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8">
+          <InventoryDashboard onBack={() => setActiveTab("jobs")} />
+        </div>
+      )}
+
+      {activeTab === "team" && (
+        <div className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8">
+          <WorkersTab />
+        </div>
+      )}
+
+      {activeTab === "jobs" && (
+        <main className="mx-auto max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#6a841d]">
@@ -678,6 +734,7 @@ export default function AdminDashboard() {
           )}
         </section>
       </main>
+      )}
 
       {selectedJob && (
         <div className="fixed inset-0 z-50 flex justify-end bg-[#17221d]/35 backdrop-blur-[2px]">

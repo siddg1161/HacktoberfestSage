@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "./api";
 import { authClient } from "./auth-client";
-import { setActiveBusiness } from "./businessContext";
+import { setActiveBusiness, setActiveWorker } from "./businessContext";
 
 type IconName = "arrow" | "check" | "store" | "sparkle" | "building" | "users" | "phone";
 
@@ -92,6 +92,7 @@ export default function ShopkeeperAuth({
       if (authError) throw new Error(authError.message || "Incorrect email or password.");
       const workspace = await api.getMyWorkspace();
       setActiveBusiness(workspace.business);
+      setActiveWorker(workspace.worker);
       onSuccess();
     } catch (err: any) {
       setError(err.message || "Unable to sign in to this workspace.");
@@ -125,6 +126,14 @@ export default function ShopkeeperAuth({
       });
 
       setActiveBusiness(newBiz);
+      setActiveWorker({
+        id: 0,
+        business_id: newBiz.business_id,
+        name: ownerName.trim(),
+        email: email.trim(),
+        role: "Owner / Manager",
+        status: "ACTIVE",
+      });
       onSuccess();
     } catch (err: any) {
       setError(err.message || "Failed to register business. Please try again.");
