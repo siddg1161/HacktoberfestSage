@@ -56,6 +56,8 @@ class ApproveQuoteRequest(BaseModel):
     accept_addon: bool = True
     approve_po: bool = True
     edited_line_items: Optional[List[Dict[str, Any]]] = None
+    edited_po_drafts: Optional[List[Dict[str, Any]]] = None
+    accepted_addon_skus: Optional[List[str]] = None
 
 class EditQuoteRequest(BaseModel):
     edited_line_items: List[Dict[str, Any]]
@@ -116,16 +118,20 @@ def approve_quote(thread_id: str, payload: ApproveQuoteRequest):
     try:
         config = {"configurable": {"thread_id": thread_id}}
 
+        update_vals: Dict[str, Any] = {
+            "human_approved_quote": payload.accept_quote,
+            "human_accepted_addon": payload.accept_addon,
+            "human_approved_po": payload.approve_po,
+        }
+        if payload.edited_line_items is not None:
+            update_vals["edited_line_items"] = payload.edited_line_items
+        if payload.edited_po_drafts is not None:
+            update_vals["restock_po_drafts"] = payload.edited_po_drafts
+        if payload.accepted_addon_skus is not None:
+            update_vals["accepted_addon_skus"] = payload.accepted_addon_skus
+
         # Update paused state with human decisions
-        graph.update_state(
-            config=config,
-            values={
-                "human_approved_quote": payload.accept_quote,
-                "human_accepted_addon": payload.accept_addon,
-                "human_approved_po": payload.approve_po,
-                "edited_line_items": payload.edited_line_items,
-            }
-        )
+        graph.update_state(config=config, values=update_vals)
 
         # Resume execution -> execute_dispatch_node commits to PostgreSQL
         resumed = graph.invoke(None, config=config)

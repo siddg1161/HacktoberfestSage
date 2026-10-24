@@ -410,7 +410,7 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
     )
     grand_total = subtotal + gst_total
 
-    # 2. If seller accepted AI revenue add-on(s), append each accepted add-on to line items
+    # 2. If seller accepted AI revenue add-on(s), append each accepted add-on to line items (if not already present)
     if state.get("human_accepted_addon") is True and state.get("ai_revenue_alert"):
         alert = state["ai_revenue_alert"]
         suggested_addons = alert.get("suggested_addons", [])
@@ -418,12 +418,24 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
 
         for addon in suggested_addons:
             sku = addon.get("suggested_sku_id")
+            name = (addon.get("suggested_item_name") or "").strip().lower()
+
             if accepted_skus is not None and sku not in accepted_skus:
                 continue # Skip if seller unselected this specific addon
 
+            # DEDUPLICATION: Skip if this addon was already included in line items (e.g. technician added via UI)
+            already_included = any(
+                (sku and str(it.get("sku_id") or "").strip().upper() == str(sku).strip().upper()) or
+                (name and str(it.get("item_name") or "").strip().lower() == name)
+                for it in extracted_items
+            )
+            if already_included:
+                print(f"  [Node 4] Add-on '{addon.get('suggested_item_name')}' ({sku}) is already present in line items. Skipping duplicate insertion.")
+                continue
+
             suggested_qty = int(addon.get("suggested_qty", 1))
             unit_price = float(addon.get("unit_price", 150.0))
-            gst_rate = 18.0
+            gst_rate = float(addon.get("gst_rate", 18.0))
             line_sub = round(suggested_qty * unit_price, 2)
             gst_amt = round(line_sub * (gst_rate / 100.0), 2)
             line_tot = round(line_sub + gst_amt, 2)
@@ -431,7 +443,7 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
             extracted_items.append({
                 "sku_id": sku,
                 "item_name": addon.get("suggested_item_name", "Service Add-on"),
-                "unit": "point",
+                "unit": addon.get("unit", "service"),
                 "quantity": suggested_qty,
                 "unit_price": unit_price,
                 "gst_rate": gst_rate,
@@ -442,13 +454,20 @@ def execute_dispatch_node(state: QuoteFlowState) -> Dict[str, Any]:
                 "is_ai_suggested": True
             })
 
-            subtotal += line_sub
-            gst_total += gst_amt
-            grand_total += line_tot
-
-    subtotal = round(subtotal, 2)
-    gst_total = round(gst_total, 2)
-    grand_total = round(grand_total, 2)
+    # Recalculate totals accurately across all finalized line items
+    subtotal = round(
+        sum(float(i.get("quantity", 1)) * float(i.get("unit_price", 0.0)) for i in extracted_items),
+        2
+    )
+    gst_total = round(
+        sum(
+            float(i.get("gst_amount")) if i.get("gst_amount") is not None
+            else (float(i.get("quantity", 1)) * float(i.get("unit_price", 0.0))) * (float(i.get("gst_rate", 18.0)) / 100.0)
+            for i in extracted_items
+        ),
+        2
+    )
+    grand_total = round(subtotal + gst_total, 2)
 
     # 3. ATOMIC PostgreSQL Persistence:
     # Uses `with conn.transaction():` so that updating quote, replacing child line items,

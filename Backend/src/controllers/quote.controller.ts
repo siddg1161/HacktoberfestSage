@@ -11,14 +11,27 @@ export class QuoteController {
    */
   static async startQuote(req: Request, res: Response): Promise<void> {
     try {
-      const { voice_transcript, slip_image, client_name, client_phone } = req.body;
+      const {
+        voice_transcript,
+        slip_image,
+        client_name,
+        client_phone,
+        business_name,
+        business_category,
+        worker_name,
+        currency_symbol,
+      } = req.body;
 
-      console.log(`[QuoteController] Starting quote generation for "${client_name || "New Client"}"...`);
+      console.log(`[QuoteController] Starting quote generation for "${client_name || "New Client"}" under "${business_name || "Business"}" (${business_category || "Trade"})...`);
       const result = await AgentService.startQuote({
         voiceTranscript: voice_transcript,
         slipImage: slip_image,
         clientName: client_name,
         clientPhone: client_phone,
+        businessName: business_name,
+        businessCategory: business_category,
+        workerName: worker_name,
+        currencySymbol: currency_symbol,
       });
 
       res.status(200).json({
@@ -118,12 +131,20 @@ export class QuoteController {
    */
   static async getAllQuotes(req: Request, res: Response): Promise<void> {
     try {
-      const quotesRes = await query(
-        `SELECT id, thread_id, client_name, client_phone, subtotal, gst_total, 
-                grand_total, status, ai_revenue_alert, created_at, updated_at
-         FROM quotes
-         ORDER BY created_at DESC;`
-      );
+      const { business_name } = req.query;
+      let sql = `
+        SELECT id, thread_id, client_name, client_phone, business_name, business_category, currency_symbol,
+               subtotal, gst_total, grand_total, status, ai_revenue_alert, created_at, updated_at
+        FROM quotes
+      `;
+      const params: any[] = [];
+      if (business_name && typeof business_name === "string" && business_name !== "all") {
+        sql += ` WHERE LOWER(business_name) = LOWER($1)`;
+        params.push(business_name);
+      }
+      sql += ` ORDER BY created_at DESC;`;
+
+      const quotesRes = await query(sql, params);
 
       res.status(200).json({
         success: true,
@@ -207,6 +228,17 @@ export class QuoteController {
       const host = (req.headers["x-forwarded-host"] as string) || req.get("host") || "hacktoberfestsage.onrender.com";
       const invoiceUrl = `${protocol}://${host}/api/quotes/${quote.thread_id}/invoice`;
 
+      let bizProfile: any = null;
+      if (quote.business_name) {
+        const bpRes = await query(
+          "SELECT * FROM business_profiles WHERE LOWER(business_name) = LOWER($1) LIMIT 1;",
+          [quote.business_name]
+        );
+        if (bpRes.rows.length > 0) {
+          bizProfile = bpRes.rows[0];
+        }
+      }
+
       const html = InvoiceService.generateInvoiceHtml({
         invoiceNumber: `INV-${quote.id.toString().padStart(5, "0")}`,
         invoiceDate: new Date(quote.created_at || Date.now()).toLocaleDateString("en-IN", {
@@ -216,6 +248,12 @@ export class QuoteController {
         }),
         clientName: quote.client_name,
         clientPhone: quote.client_phone,
+        businessName: bizProfile?.business_name || quote.business_name || "QuoteFlow AI",
+        businessCategory: bizProfile?.industry || quote.business_category || "Professional Services",
+        businessAddress: bizProfile?.address,
+        businessPhone: bizProfile?.phone,
+        businessGstin: bizProfile?.tax_id,
+        currencySymbol: bizProfile?.currency_symbol || quote.currency_symbol || "₹",
         threadId: quote.thread_id,
         subtotal: parseFloat(quote.subtotal),
         gstTotal: parseFloat(quote.gst_total),

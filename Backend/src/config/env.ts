@@ -12,9 +12,21 @@ const parsePort = (val: string | undefined): number => {
 
 export const config = {
   port: parsePort(process.env.PORT),
-  databaseUrl:
-    process.env.DATABASE_URL ||
-    "postgresql://neondb_owner:npg_RaxmX3EWiZ2f@ep-billowing-bar-b5f1nxza.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require",
+  isProduction: process.env.NODE_ENV === "production",
+  // Never keep connection strings or auth secrets in source control. Set these
+  // values in the deployment environment (and in a local .env file only).
+  databaseUrl: process.env.DATABASE_URL || "",
+  betterAuthSecret:
+    process.env.BETTER_AUTH_SECRET ||
+    (process.env.NODE_ENV === "production"
+      ? ""
+      : "development-only-secret-change-before-production-32chars"),
+  betterAuthUrl: process.env.BETTER_AUTH_URL || "http://localhost:5000",
+  trustedOrigins: (process.env.TRUSTED_ORIGINS ||
+    "http://localhost:5173,http://localhost:8443,https://hacktoberfest-sage.vercel.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   agentApiUrl: process.env.AGENT_API_URL || "https://quoteflow-agent.onrender.com",
   clientPortalBaseUrl:
     process.env.CLIENT_PORTAL_BASE_URL || "https://hacktoberfest-sage.vercel.app/portal",

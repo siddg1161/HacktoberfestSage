@@ -55,4 +55,7 @@ pnpm-debug.log*
 
 # OS Files
 .DS_Store
-Thumbs.db
+Thumbs.db 
+# Graphify knowledge graph
+graphify-out/
+graphify-out/

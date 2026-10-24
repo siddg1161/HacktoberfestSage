@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import InventoryDashboard from "./InventoryDashboard";
+import WorkersTab from "./WorkersTab";
+import { useActiveBusiness } from "./businessContext";
 import { api, DbQuote, QuoteResult } from "./api";
 
 type JobStatus = "Paid" | "Approved" | "Awaiting approval" | "Draft";
@@ -22,118 +24,6 @@ type Job = {
   purchase_orders?: any[];
   slip_image_url?: string;
 };
-
-const initialDemoJobs: Job[] = [
-  {
-    id: "PP-1048",
-    thread_id: "demo-thread-1048",
-    customer: "Sharma Electricals",
-    phone: "+91 98261 44820",
-    service: "Complete room rewiring",
-    technician: "Vikram Patel",
-    date: "18 Oct 2026",
-    time: "10:42 AM",
-    status: "Paid",
-    amount: 41347,
-    items: [
-      { name: "Room rewiring", quantity: 3, price: 24000, stock_tier: "HEALTHY" },
-      { name: "MCB distribution box", quantity: 2, price: 7600, stock_tier: "THRESHOLD_WARNING" },
-      { name: "Modular switches", quantity: 18, price: 3240, stock_tier: "INSTANT_DEFICIT" },
-      { name: "Fitting & labour", quantity: 1, price: 2200, stock_tier: "HEALTHY" },
-    ],
-    notes: "Customer requested Anchor Roma switches. Work to begin Monday morning.",
-  },
-  {
-    id: "PP-1047",
-    thread_id: "demo-thread-1047",
-    customer: "Joshi Clinic",
-    phone: "+91 98930 11228",
-    service: "AC service and gas refill",
-    technician: "Arjun Mehta",
-    date: "18 Oct 2026",
-    time: "9:15 AM",
-    status: "Approved",
-    amount: 12800,
-    items: [
-      { name: "Split AC servicing", quantity: 3, price: 4500, stock_tier: "HEALTHY" },
-      { name: "R32 gas refill", quantity: 1, price: 5800, stock_tier: "THRESHOLD_WARNING" },
-      { name: "Drain pipe replacement", quantity: 2, price: 1500, stock_tier: "HEALTHY" },
-    ],
-    notes: "Reception AC is priority. Complete work outside clinic hours.",
-  },
-  {
-    id: "PP-1046",
-    thread_id: "demo-thread-1046",
-    customer: "Mehta Interiors",
-    phone: "+91 97555 89004",
-    service: "False ceiling lighting",
-    technician: "Vikram Patel",
-    date: "17 Oct 2026",
-    time: "4:38 PM",
-    status: "Awaiting approval",
-    amount: 28750,
-    items: [
-      { name: "LED profile light", quantity: 42, price: 16800, stock_tier: "HEALTHY" },
-      { name: "Driver 24V", quantity: 6, price: 7200, stock_tier: "THRESHOLD_WARNING" },
-      { name: "Installation", quantity: 1, price: 4750, stock_tier: "HEALTHY" },
-    ],
-    notes: "Warm white 3000K profile requested for the drawing room.",
-  },
-  {
-    id: "PP-1045",
-    thread_id: "demo-thread-1045",
-    customer: "Patel Traders",
-    phone: "+91 99770 33219",
-    service: "Shop CCTV installation",
-    technician: "Sameer Khan",
-    date: "17 Oct 2026",
-    time: "1:20 PM",
-    status: "Draft",
-    amount: 35990,
-    items: [
-      { name: "2MP dome camera", quantity: 6, price: 17400, stock_tier: "INSTANT_DEFICIT" },
-      { name: "8-channel DVR", quantity: 1, price: 9800, stock_tier: "HEALTHY" },
-      { name: "Cable and installation", quantity: 1, price: 8790, stock_tier: "HEALTHY" },
-    ],
-    notes: "Need customer confirmation on DVR storage capacity.",
-  },
-  {
-    id: "PP-1044",
-    thread_id: "demo-thread-1044",
-    customer: "Cafe Chapter One",
-    phone: "+91 88170 22019",
-    service: "Kitchen exhaust repair",
-    technician: "Arjun Mehta",
-    date: "16 Oct 2026",
-    time: "5:05 PM",
-    status: "Paid",
-    amount: 9650,
-    items: [
-      { name: "Exhaust motor", quantity: 1, price: 5800, stock_tier: "HEALTHY" },
-      { name: "Duct cleaning", quantity: 1, price: 2250, stock_tier: "HEALTHY" },
-      { name: "Labour", quantity: 1, price: 1600, stock_tier: "HEALTHY" },
-    ],
-    notes: "Work completed after closing. Payment received via UPI.",
-  },
-  {
-    id: "PP-1043",
-    thread_id: "demo-thread-1043",
-    customer: "Aarav Residency",
-    phone: "+91 98270 66114",
-    service: "Water pump replacement",
-    technician: "Sameer Khan",
-    date: "16 Oct 2026",
-    time: "11:30 AM",
-    status: "Approved",
-    amount: 22400,
-    items: [
-      { name: "1.5 HP water pump", quantity: 1, price: 16800, stock_tier: "HEALTHY" },
-      { name: "Pipe fittings", quantity: 1, price: 2200, stock_tier: "HEALTHY" },
-      { name: "Installation", quantity: 1, price: 3400, stock_tier: "HEALTHY" },
-    ],
-    notes: "Society manager approved. Installation planned for Saturday.",
-  },
-];
 
 type AdminIcon =
   | "arrow"
@@ -240,68 +130,67 @@ function StatusBadge({ status }: { status: JobStatus }) {
 }
 
 export default function AdminDashboard() {
-  const [jobsList, setJobsList] = useState<Job[]>(initialDemoJobs);
+  const { business: activeBiz } = useActiveBusiness();
+  const [jobsList, setJobsList] = useState<Job[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"All" | JobStatus>("All");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [exported, setExported] = useState(false);
-  const [showInventory, setShowInventory] = useState(false);
+  const [activeTab, setActiveTab] = useState<"jobs" | "team">("jobs");
 
-  // Load real quotes from backend
+  // Load real quotes from database
   const loadQuotes = async () => {
     try {
       const res = await api.getQuotes();
       const list = Array.isArray(res) ? res : (res as any)?.quotes || (res as any)?.data || [];
-      if (list.length > 0) {
-        const liveJobs: Job[] = list.map((q: DbQuote) => {
-          let st: JobStatus = "Draft";
-          if (q.status === "INVOICED") st = "Paid";
-          else if (q.status === "WON") st = "Approved";
-          else if (q.status === "QUOTED") st = "Awaiting approval";
+      const liveJobs: Job[] = list.map((q: DbQuote) => {
+        let st: JobStatus = "Draft";
+        if (q.status === "INVOICED") st = "Paid";
+        else if (q.status === "WON") st = "Approved";
+        else if (q.status === "QUOTED") st = "Awaiting approval";
 
-          const d = new Date(q.created_at || Date.now());
-          const dateStr = d.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          });
-          const timeStr = d.toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          // Ensure notes and revenue_alert are always strings, never objects!
-          const alertObj = typeof q.ai_revenue_alert === "object" ? q.ai_revenue_alert : null;
-          const alertReason =
-            alertObj?.reason ||
-            (typeof q.ai_revenue_alert === "string" ? q.ai_revenue_alert : "");
-
-          return {
-            id: q.quote_id || `Q-${q.id}`,
-            thread_id: q.thread_id,
-            customer: q.client_name,
-            phone: q.client_phone || "+91 98261 44820",
-            service: `Quote #${q.quote_id || q.id}`,
-            technician: "Field AI Agent",
-            date: dateStr,
-            time: timeStr,
-            status: st,
-            amount: Number(q.grand_total) || 0,
-            items: [],
-            notes: alertReason || "Automated GST Quote via QuoteFlow AI.",
-            revenue_alert: alertReason,
-            revenue_alert_obj: alertObj,
-            slip_image_url: q.slip_image_url,
-          };
+        const d = new Date(q.created_at || Date.now());
+        const dateStr = d.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+        const timeStr = d.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
         });
 
-        // Merge live quotes at the top, followed by demo jobs that don't collide
-        setJobsList([...liveJobs, ...initialDemoJobs.filter((d) => !liveJobs.some((l) => l.id === d.id))]);
-      }
+        // Ensure notes and revenue_alert are always strings, never objects!
+        const alertObj = typeof q.ai_revenue_alert === "object" ? q.ai_revenue_alert : null;
+        const alertReason =
+          alertObj?.reason ||
+          (typeof q.ai_revenue_alert === "string" ? q.ai_revenue_alert : "");
+
+        return {
+          id: String(q.quote_id || `Q-${q.id}`),
+          thread_id: q.thread_id,
+          customer: q.client_name,
+          phone: q.client_phone || "—",
+          service: `Quote #${q.quote_id || q.id}`,
+          technician: "Field AI Agent",
+          date: dateStr,
+          time: timeStr,
+          status: st,
+          amount: Number(q.grand_total) || 0,
+          items: [],
+          notes: alertReason || "Automated GST Quote via QuoteFlow AI.",
+          revenue_alert: alertReason,
+          revenue_alert_obj: alertObj,
+          slip_image_url: q.slip_image_url,
+        };
+      });
+
+      setJobsList(liveJobs);
     } catch (err) {
-      console.warn("Using fallback demo jobs:", err);
+      console.warn("Failed to load quotes from database:", err);
+      setJobsList([]);
     }
   };
 
@@ -436,10 +325,6 @@ export default function AdminDashboard() {
     .filter((job) => job.status !== "Paid")
     .reduce((sum, job) => sum + job.amount, 0);
 
-  if (showInventory) {
-    return <InventoryDashboard onBack={() => setShowInventory(false)} />;
-  }
-
   return (
     <div className="min-h-screen bg-[#f4f5ef] text-[#17221d]">
       <header className="border-b border-[#17221d]/8 bg-white">
@@ -469,13 +354,20 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Active Business Badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-50 text-emerald-950 text-xs font-bold shadow-sm ml-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="truncate max-w-[130px] sm:max-w-[170px]">{activeBiz.business_name}</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-800 hidden sm:inline-block">({activeBiz.industry})</span>
+            </div>
+
             {/* Top Navigation Switcher */}
-            <div className="hidden sm:flex items-center gap-1.5 ml-6 bg-[#f4f5ef] p-1 rounded-full border border-[#17221d]/8">
+            <div className="hidden md:flex items-center gap-1.5 ml-4 bg-[#f4f5ef] p-1 rounded-full border border-[#17221d]/8">
               <button
                 type="button"
-                onClick={() => setShowInventory(false)}
+                onClick={() => setActiveTab("jobs")}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
-                  !showInventory
+                  activeTab === "jobs"
                     ? "bg-[#17221d] text-white shadow-sm"
                     : "text-[#59645f] hover:text-[#17221d]"
                 }`}
@@ -484,24 +376,31 @@ export default function AdminDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowInventory(true)}
+                onClick={() => setActiveTab("team")}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
-                  showInventory
+                  activeTab === "team"
                     ? "bg-[#17221d] text-white shadow-sm"
                     : "text-[#59645f] hover:text-[#17221d]"
                 }`}
               >
-                📦 Warehouse & Inventory
+                👥 Team & Workers
               </button>
             </div>
+            <a
+              href="#"
+              className="hidden lg:flex items-center gap-1.5 ml-2 px-3 py-1 text-xs font-bold text-[#6a7872] hover:text-[#17221d] transition"
+              title="Return to homepage"
+            >
+              Sign out
+            </a>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <p className="text-xs font-extrabold">Rajesh Mehta</p>
-              <p className="text-[10px] font-semibold text-[#87908b]">Business owner</p>
+              <p className="text-xs font-extrabold">{activeBiz.owner_name || "Business Owner"}</p>
+              <p className="text-[10px] font-semibold text-[#87908b]">{activeBiz.industry} Owner</p>
             </div>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
-              RM
+              {(activeBiz.owner_name || "BO").slice(0, 2).toUpperCase()}
             </span>
           </div>
         </div>
@@ -528,14 +427,6 @@ export default function AdminDashboard() {
               <Icon name="users" className="h-4 w-4" />
               Technician portal
             </a>
-            <button
-              type="button"
-              onClick={() => setShowInventory(true)}
-              className="flex items-center justify-center gap-2 rounded-full bg-[#caff52] text-[#17221d] border border-[#17221d]/15 px-5 py-3.5 text-sm font-extrabold shadow-sm transition hover:-translate-y-0.5 hover:bg-[#bbf33a]"
-            >
-              <Icon name="briefcase" className="h-4 w-4" />
-              Warehouse & Inventory Hub
-            </button>
             <button
               type="button"
               onClick={exportJobs}
@@ -960,6 +851,14 @@ export default function AdminDashboard() {
           </aside>
         </div>
       )}
+
+      {/* Team & Workers View */}
+      {activeTab === "team" && (
+        <main className="mx-auto max-w-[1280px] px-5 py-6 sm:px-8">
+          <WorkersTab />
+        </main>
+      )}
+
     </div>
   );
 }

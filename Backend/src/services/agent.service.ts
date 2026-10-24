@@ -14,6 +14,10 @@ export interface StartQuoteInput {
   slipImage?: string;
   clientName?: string;
   clientPhone?: string;
+  businessName?: string;
+  businessCategory?: string;
+  workerName?: string;
+  currencySymbol?: string;
 }
 
 export interface ApproveQuoteInput {
@@ -268,15 +272,19 @@ if action == "start":
 
 elif action == "resume":
     decisions = payload.get("decisions", {})
-    graph.update_state(
-        config=config,
-        values={
-            "human_approved_quote": decisions.get("accept_quote", True),
-            "human_accepted_addon": decisions.get("accept_addon", True),
-            "human_approved_po": decisions.get("approve_po", True),
-            "edited_line_items": decisions.get("edited_line_items")
-        }
-    )
+    update_vals = {
+        "human_approved_quote": decisions.get("accept_quote", True),
+        "human_accepted_addon": decisions.get("accept_addon", True),
+        "human_approved_po": decisions.get("approve_po", True),
+    }
+    if decisions.get("edited_line_items") is not None:
+        update_vals["edited_line_items"] = decisions.get("edited_line_items")
+    if decisions.get("edited_po_drafts") is not None:
+        update_vals["restock_po_drafts"] = decisions.get("edited_po_drafts")
+    if decisions.get("accepted_addon_skus") is not None:
+        update_vals["accepted_addon_skus"] = decisions.get("accepted_addon_skus")
+
+    graph.update_state(config=config, values=update_vals)
     # Resume graph execution
     graph.invoke(None, config=config)
     snapshot = graph.get_state(config)
@@ -376,8 +384,12 @@ elif action == "edit":
       thread_id: threadId,
       initial_input: {
         thread_id: threadId,
-        client_name: input.clientName || "Sharma Electrical Contractors",
-        client_phone: input.clientPhone || "+91-9826012345",
+        client_name: input.clientName || "Valued Customer",
+        client_phone: input.clientPhone || "",
+        business_name: input.businessName || "My Business",
+        business_category: input.businessCategory || "General Trade & Services",
+        worker_name: input.workerName || "Field Estimator",
+        currency_symbol: input.currencySymbol || "₹",
         voice_transcript: input.voiceTranscript || "",
         slip_image_url: input.slipImage || null,
       },
@@ -390,16 +402,8 @@ elif action == "edit":
       threadId,
       status: "PAUSED_AT_HITL_GATE",
       nextPendingNode: res.next || [],
-      clientName:
-        values.client_name ||
-        values.clientName ||
-        input.clientName ||
-        "Sharma Electrical Contractors",
-      clientPhone:
-        values.client_phone ||
-        values.clientPhone ||
-        input.clientPhone ||
-        "+91-9826012345",
+      clientName: values.client_name || values.clientName || input.clientName || "Valued Customer",
+      clientPhone: values.client_phone || values.clientPhone || input.clientPhone || "+91-9826012345",
       extractedItems: values.extracted_items || values.extractedItems || [],
       subtotal: Number(values.subtotal ?? values.subTotal ?? 0),
       gstTotal: Number(values.gst_total ?? values.gstTotal ?? 0),
