@@ -98,8 +98,8 @@ export default function TechnicianAuth({
       setError("Please enter your full name.");
       return;
     }
-    if (password.length < 8) {
-      setError("Use a password of at least 8 characters.");
+    if (!password || password.trim().length < 4) {
+      setError("Please enter your 4-digit PIN or password (at least 4 characters).");
       return;
     }
     setError("");
@@ -107,26 +107,52 @@ export default function TechnicianAuth({
 
     try {
       if (mode === "signup") {
-        const { error: authError } = await authClient.signUp.email({
+        const result = await api.technicianSignup({
           name: name.trim(),
           email: email.trim(),
-          password,
+          pin_code: password.trim(),
         });
-        if (authError) throw new Error(authError.message || "Unable to create your account.");
+        if (password.length >= 8) {
+          try {
+            await authClient.signUp.email({
+              name: name.trim(),
+              email: email.trim(),
+              password: password.trim(),
+            });
+          } catch {
+            // Non-blocking background registration
+          }
+        }
+        setActiveWorker(result.worker);
+        setActiveBusiness(result.business);
+        onSuccess();
       } else {
-        const { error: authError } = await authClient.signIn.email({
-          email: email.trim(),
-          password,
-        });
-        if (authError) throw new Error(authError.message || "Incorrect email or password.");
+        try {
+          const result = await api.workerLogin(email.trim(), password.trim());
+          setActiveWorker(result.worker);
+          setActiveBusiness(result.business);
+          onSuccess();
+          return;
+        } catch (workerErr: any) {
+          // If technician PIN check fails and length >= 8, try Better Auth account
+          if (password.length >= 8) {
+            const { error: authError } = await authClient.signIn.email({
+              email: email.trim(),
+              password: password.trim(),
+            });
+            if (!authError) {
+              const workspace = await api.getMyWorkspace();
+              setActiveWorker(workspace.worker);
+              setActiveBusiness(workspace.business);
+              onSuccess();
+              return;
+            }
+          }
+          throw new Error(workerErr.message || "Incorrect technician email address or PIN.");
+        }
       }
-
-      const workspace = await api.getMyWorkspace();
-      setActiveWorker(workspace.worker);
-      setActiveBusiness(workspace.business);
-      onSuccess();
     } catch (err: any) {
-      setError(err.message || "We could not sign you in. Check your email and password.");
+      setError(err.message || "We could not sign you in. Check your email and PIN.");
     } finally {
       setLoading(false);
     }
@@ -272,15 +298,7 @@ export default function TechnicianAuth({
 
               <label className="block">
                 <span className="mb-2 flex items-center justify-between text-xs font-extrabold">
-                  Password
-                  {mode === "login" && (
-                    <button
-                      type="button"
-                      className="font-bold text-[#69821d]"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+                  {mode === "login" ? "4-Digit PIN or Password *" : "Create 4-Digit PIN or Password *"}
                 </span>
                 <div className="relative">
                   <input
@@ -288,8 +306,8 @@ export default function TechnicianAuth({
                     onChange={(event) => setPassword(event.target.value)}
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={8}
-                    placeholder="At least 8 characters"
+                    minLength={4}
+                    placeholder="e.g. 1234"
                     autoComplete={mode === "login" ? "current-password" : "new-password"}
                     className="h-12 w-full rounded-xl border border-[#17221d]/12 bg-white px-4 pr-12 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-[#a3aaa6] focus:border-[#789524] focus:ring-4 focus:ring-[#caff52]/25"
                   />
@@ -306,6 +324,26 @@ export default function TechnicianAuth({
                   </button>
                 </div>
               </label>
+
+              {/* Quick Fill Demo / Instructions */}
+              <div className="rounded-xl border border-[#17221d]/8 bg-[#f8f9f5] p-3 text-xs text-[#525f58]">
+                <p className="font-bold text-[#17221d]">💡 Technician Access:</p>
+                <p className="mt-0.5 text-[11px] text-[#6d7973]">
+                  Use the email and 4-digit PIN given to you by your shopkeeper.
+                </p>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("sameer@sharmaelectricals.com");
+                      setPassword("1234");
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-[#35520e] border border-[#17221d]/10 hover:bg-[#eaf5cc] transition"
+                  >
+                    ⚡ Auto-fill Demo Tech (Sameer Khan / 1234)
+                  </button>
+                )}
+              </div>
 
               {error && (
                 <p
