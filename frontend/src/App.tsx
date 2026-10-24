@@ -4,7 +4,7 @@ import TechnicianAuth from "./TechnicianAuth";
 import ShopkeeperAuth from "./ShopkeeperAuth";
 import TechnicianPortal from "./TechnicianPortal";
 import CustomerPortal from "./CustomerPortal";
-import { useActiveBusiness } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, isTechnicianWorker } from "./businessContext";
 
 type IconName =
   | "arrow"
@@ -170,9 +170,15 @@ function App() {
       window.location.hash === "#shopkeeper" ||
       window.location.hash === "#login",
   );
-  const [showAdminDashboard, setShowAdminDashboard] = useState(
-    () => window.location.hash === "#admin" || window.location.hash === "#dashboard",
-  );
+  const [showAdminDashboard, setShowAdminDashboard] = useState(() => {
+    const isTech = isTechnicianWorker(getActiveWorker());
+    if (isTech) return false;
+    return (
+      window.location.hash === "#admin" ||
+      window.location.hash === "#dashboard" ||
+      window.location.hash === "#inventory"
+    );
+  });
   const getPortalId = () => {
     if (window.location.hash.startsWith("#portal/")) {
       return window.location.hash.replace("#portal/", "");
@@ -187,20 +193,29 @@ function App() {
 
   useEffect(() => {
     const syncRoute = () => {
-      setShowTechnicianPortal(window.location.hash === "#technician");
+      const hash = window.location.hash;
+      const isTech = isTechnicianWorker(getActiveWorker());
+
+      // If a logged-in technician tries to visit admin or inventory, redirect to technician workspace
+      if (isTech && (hash === "#admin" || hash === "#dashboard" || hash === "#inventory")) {
+        window.location.hash = "#technician";
+        return;
+      }
+
+      setShowTechnicianPortal(hash === "#technician");
       setShowTechnicianAuth(
-        window.location.hash === "#technician-auth" ||
-        window.location.hash === "#tech-auth" ||
-        window.location.hash === "#tech-login",
+        hash === "#technician-auth" ||
+        hash === "#tech-auth" ||
+        hash === "#tech-login",
       );
       setShowShopkeeperAuth(
-        window.location.hash === "#shopkeeper-auth" ||
-        window.location.hash === "#shopkeeper-login" ||
-        window.location.hash === "#shopkeeper" ||
-        window.location.hash === "#login",
+        hash === "#shopkeeper-auth" ||
+        hash === "#shopkeeper-login" ||
+        hash === "#shopkeeper" ||
+        hash === "#login",
       );
       setShowAdminDashboard(
-        window.location.hash === "#admin" || window.location.hash === "#dashboard",
+        !isTech && (hash === "#admin" || hash === "#dashboard" || hash === "#inventory"),
       );
       setPortalThreadId(getPortalId());
     };

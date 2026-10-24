@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { api, QuoteResult, CatalogItem, ExtractedItem, RestockPoDraft } from "./api";
-import { useActiveBusiness, getActiveWorker } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, setActiveWorker } from "./businessContext";
 
 type CaptureIcon =
   | "arrow"
@@ -344,12 +344,12 @@ export default function TechnicianPortal() {
     const timers: any[] = [];
     timers.push(
       setTimeout(() => {
-        setProcessingStep("Node 2: Checking 3-Tier warehouse stock & computing GST...");
+        setProcessingStep("Node 2: Matching catalog rates & computing GST...");
       }, 3500)
     );
     timers.push(
       setTimeout(() => {
-        setProcessingStep("Node 3: Auditing companion services & drafting restock POs...");
+        setProcessingStep("Node 3: Auditing companion services & preparing quote draft...");
       }, 7500)
     );
 
@@ -895,20 +895,16 @@ export default function TechnicianPortal() {
             <Brand />
           </button>
           <div className="flex items-center gap-3">
-            <a
-              href="#inventory"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-[#17221d]/15 bg-white px-3.5 py-1.5 text-xs font-extrabold text-[#17221d] transition hover:bg-[#f4f5ef]"
-            >
-              📦 Warehouse & Stock
-            </a>
             <button
               type="button"
               onClick={() => {
-                window.location.hash = "#admin";
+                setActiveWorker(null);
+                window.location.hash = "";
               }}
-              className="mr-2 text-xs font-bold text-[#55615b] transition hover:text-[#17221d]"
+              className="mr-2 text-xs font-bold text-[#55615b] transition hover:text-rose-600"
+              title="Sign out of technician workspace"
             >
-              Admin Dashboard →
+              Sign out
             </button>
             <div className="hidden text-right sm:block">
               <p className="text-xs font-extrabold">{techName}</p>
@@ -932,7 +928,7 @@ export default function TechnicianPortal() {
               Send your dukaan slip & voice
             </h1>
             <p className="mt-2 text-sm text-[#69736e] sm:text-base">
-              Snap a job slip or speak in Hinglish. QuoteFlow AI cross-references warehouse stock and generates the quote.
+              Snap a job slip or speak in Hinglish. DukaanPay automatically identifies items, quantities, and computes GST quotes.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#77817c]">
@@ -948,7 +944,7 @@ export default function TechnicianPortal() {
             >
               2
             </span>
-            AI Quote & POs
+            Review Quote
           </div>
         </div>
 
@@ -1195,7 +1191,7 @@ export default function TechnicianPortal() {
                 </div>
               )}
 
-              {/* 3-Tier Inventory Quoted Items Table */}
+              {/* Quoted Items Table */}
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -1205,19 +1201,11 @@ export default function TechnicianPortal() {
                       <th className="pb-3 text-right">Rate (₹)</th>
                       <th className="pb-3 text-right">GST</th>
                       <th className="pb-3 text-right">Total</th>
-                      <th className="pb-3 text-center">3-Tier Stock Status</th>
                       <th className="pb-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#17221d]/6">
                     {quoteResult.extractedItems.map((item, idx) => {
-                      const tierBadge =
-                        item.stock_tier === "HEALTHY"
-                          ? "bg-[#ecfdf5] text-[#047857]"
-                          : item.stock_tier === "THRESHOLD_WARNING"
-                          ? "bg-[#fffbeb] text-[#b45309]"
-                          : "bg-[#fef2f2] text-[#b91c1c]";
-
                       return (
                         <tr key={idx} className="hover:bg-[#fbfcf8] transition-colors">
                           <td className="py-3 font-semibold text-[#17221d]">
@@ -1268,11 +1256,6 @@ export default function TechnicianPortal() {
                             ₹{Number(item.gst_amount).toFixed(2)} ({item.gst_rate}%)
                           </td>
                           <td className="py-3 text-right font-black text-[#17221d]">₹{Number(item.line_total).toFixed(2)}</td>
-                          <td className="py-3 text-center">
-                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${tierBadge}`}>
-                              {item.stock_tier.replace("_", " ")}
-                            </span>
-                          </td>
                           <td className="py-3 text-center">
                             <button
                               type="button"
@@ -1423,96 +1406,6 @@ export default function TechnicianPortal() {
                 </div>
               )}
 
-              {/* Autonomous Supplier Restock POs Drafts */}
-              {quoteResult.restockPoDrafts && quoteResult.restockPoDrafts.length > 0 && (
-                <div className="mt-6 rounded-2xl border border-[#93c5fd] bg-[#f0f9ff] p-5 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#dbeafe] text-[#1d4ed8] shadow-sm">
-                      <CaptureIcon name="file" className="h-5 w-5" />
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-wider text-[#1e40af]">
-                            Autonomous Warehouse Restock POs ({quoteResult.restockPoDrafts.length} PO Drafts)
-                          </p>
-                          <p className="mt-0.5 text-xs text-[#3b82f6]">
-                            Stock shortages detected. Click "Review & Edit PO" to customize suppliers, restock quantities, or urgency before warehouse dispatch.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {quoteResult.restockPoDrafts.map((po, pIdx) => {
-                          const poTotal = Math.round(
-                            po.po_items.reduce((sum, it) => sum + (Number(it.line_total) || Number(it.order_qty) * Number(it.unit_price)), 0) * 100
-                          ) / 100;
-                          return (
-                            <div
-                              key={pIdx}
-                              className="rounded-xl bg-white p-4 border border-[#bfdbfe] shadow-xs flex flex-col justify-between hover:border-[#60a5fa] transition"
-                            >
-                              <div>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-extrabold text-[#17221d] flex items-center gap-1">
-                                      🏢 {po.supplier_name}
-                                    </span>
-                                  </div>
-                                  <span
-                                    className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                                      po.urgency === "INSTANT_ORDER"
-                                        ? "bg-rose-100 text-rose-700 border border-rose-200"
-                                        : "bg-blue-100 text-blue-700 border border-blue-200"
-                                    }`}
-                                  >
-                                    {po.urgency.replace("_", " ")}
-                                  </span>
-                                </div>
-
-                                <ul className="mt-3 space-y-1.5 text-xs text-[#4b5563]">
-                                  {po.po_items.map((it, itIdx) => (
-                                    <li key={itIdx} className="flex items-center justify-between bg-neutral-50 px-2 py-1 rounded border border-neutral-100">
-                                      <span className="font-medium text-[#1f2937]">
-                                        • {it.item_name}
-                                      </span>
-                                      <span className="font-bold text-[#111827]">
-                                        Qty: {it.order_qty} (₹{it.line_total})
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-
-                                {po.order_note && (
-                                  <p className="mt-2 text-[10px] text-[#6b7280] italic">
-                                    Note: {po.order_note}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
-                                <div>
-                                  <span className="text-[10px] text-[#6b7280] uppercase tracking-wider block font-bold">Total PO Value</span>
-                                  <span className="text-xs font-black text-[#1e40af]">₹{poTotal.toFixed(2)}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenPoModal(pIdx)}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-[#dbeafe] px-3 py-1.5 text-xs font-bold text-[#1e40af] hover:bg-[#bfdbfe] transition shadow-xs"
-                                >
-                                  <CaptureIcon name="edit" className="h-3.5 w-3.5" />
-                                  Review & Edit PO
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Approval & Dispatch Action Card */}
               <div className="mt-8 border-t border-[#17221d]/8 pt-6">
                 {approvalStatus === "approved" ? (
@@ -1522,7 +1415,7 @@ export default function TechnicianPortal() {
                     </span>
                     <h3 className="mt-3 text-lg font-extrabold text-[#15803d]">Quote Finalized & Dispatched!</h3>
                     <p className="mt-1 text-xs text-[#166534]">
-                      Quote and supplier POs committed atomically to Neon PostgreSQL.
+                      Quote committed and ready for customer review.
                     </p>
                     <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
                       <a
@@ -1553,7 +1446,7 @@ export default function TechnicianPortal() {
                     <div>
                       <p className="text-sm font-extrabold">Ready to confirm and send quote?</p>
                       <p className="text-xs text-[#69736e]">
-                        Approves quote, AI companion labor charges, and drafts warehouse POs.
+                        Confirms line items, rates, and companion labor charges.
                       </p>
                       {editSuccessMsg && (
                         <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 inline-block">

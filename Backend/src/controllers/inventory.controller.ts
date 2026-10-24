@@ -4,16 +4,43 @@ import { InventoryService } from "../services/inventory.service.js";
 export class InventoryController {
   /**
    * GET /api/inventory/catalog
-   * Fetches real-time catalog stock levels and reorder thresholds.
+   * Fetches catalog items. For managers/owners, returns real-time warehouse stock levels
+   * and reorder thresholds. For field technicians, stock levels are omitted.
    */
   static async getCatalog(req: Request, res: Response): Promise<void> {
     try {
       const industry = typeof req.query.industry === "string" ? req.query.industry : undefined;
       const items = await InventoryService.getAllCatalogItems(industry);
+
+      let isManager = false;
+      if (req.authenticatedUser?.email) {
+        const { query } = await import("../config/db.js");
+        const workerCheck = await query(
+          `SELECT role FROM workers WHERE LOWER(email) = LOWER($1) AND status = 'ACTIVE' LIMIT 1`,
+          [req.authenticatedUser.email]
+        );
+        const role = String(workerCheck.rows[0]?.role || "").toLowerCase();
+        isManager = role.includes("owner") || role.includes("manager");
+      }
+
+      // Technicians should not see warehouse stock levels or safety thresholds
+      const safeItems = isManager
+        ? items
+        : items.map((it: any) => ({
+            id: it.id,
+            sku_id: it.sku_id,
+            item_name: it.item_name,
+            category: it.category,
+            unit: it.unit,
+            unit_rate: it.unit_rate,
+            gst_rate: it.gst_rate,
+            industry: it.industry,
+          }));
+
       res.status(200).json({
         success: true,
-        count: items.length,
-        data: items,
+        count: safeItems.length,
+        data: safeItems,
       });
     } catch (error: any) {
       console.error("[InventoryController] getCatalog error:", error);
