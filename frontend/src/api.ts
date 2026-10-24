@@ -125,6 +125,8 @@ export const api = {
       accept_addon?: boolean;
       approve_po?: boolean;
       edited_line_items?: any[];
+      edited_po_drafts?: RestockPoDraft[];
+      accepted_addon_skus?: string[];
     }
   ): Promise<{ threadId: string; status: string; clientPortalUrl: string; grandTotal: number }> {
     const res = await fetch(`${API_BASE}/api/quotes/${threadId}/approve`, {

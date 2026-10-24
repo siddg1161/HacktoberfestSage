@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { api, QuoteResult, CatalogItem, ExtractedItem } from "./api";
+import { api, QuoteResult, CatalogItem, ExtractedItem, RestockPoDraft } from "./api";
 
 type CaptureIcon =
   | "arrow"
@@ -161,6 +161,13 @@ export default function TechnicianPortal() {
   const [customQty, setCustomQty] = useState(1);
   const [customPrice, setCustomPrice] = useState(100);
   const [customUnit, setCustomUnit] = useState("piece");
+
+  // Purchase Order Review & Edit Modal States
+  const [editingPoIndex, setEditingPoIndex] = useState<number | null>(null);
+  const [poEditForm, setPoEditForm] = useState<RestockPoDraft | null>(null);
+  const [newPoItemName, setNewPoItemName] = useState("");
+  const [newPoItemQty, setNewPoItemQty] = useState(1);
+  const [newPoItemPrice, setNewPoItemPrice] = useState(100);
 
   const [techName] = useState(() => {
     return localStorage.getItem("dukaanpay_tech_name") || "Vikram Patel";
@@ -373,6 +380,7 @@ export default function TechnicianPortal() {
         accept_addon: true,
         approve_po: true,
         edited_line_items: quoteResult.extractedItems,
+        edited_po_drafts: quoteResult.restockPoDrafts,
       });
       setDispatchedPortalUrl(res.clientPortalUrl);
       setApprovalStatus("approved");
@@ -540,6 +548,274 @@ export default function TechnicianPortal() {
     } finally {
       setIsSavingEdit(false);
     }
+  };
+
+  // -----------------------------------------------------------------------
+  // AI Revenue Guard Addon Handlers
+  // -----------------------------------------------------------------------
+  const isAddonInQuote = (addonSku: string, addonName: string) => {
+    if (!quoteResult) return false;
+    return quoteResult.extractedItems.some(
+      (it) => it.sku_id === addonSku || (it.is_ai_suggested && it.item_name === addonName)
+    );
+  };
+
+  const handleUpdateAddonQty = (addonIdx: number, newQty: number) => {
+    if (!quoteResult?.aiRevenueAlert?.suggested_addons) return;
+    const qty = Math.max(1, newQty);
+    const updatedAlert = { ...quoteResult.aiRevenueAlert };
+    const addons = [...updatedAlert.suggested_addons];
+    const target = { ...addons[addonIdx] };
+    target.suggested_qty = qty;
+    target.line_total = Math.round(qty * Number(target.unit_price) * 1.18 * 100) / 100;
+    addons[addonIdx] = target;
+    updatedAlert.suggested_addons = addons;
+    updatedAlert.total_estimated_added_revenue = Math.round(
+      addons.reduce((sum, a) => sum + Number(a.line_total), 0) * 100
+    ) / 100;
+
+    let updatedExtracted = [...quoteResult.extractedItems];
+    const existingIdx = updatedExtracted.findIndex(
+      (it) => it.sku_id === target.suggested_sku_id || (it.is_ai_suggested && it.item_name === target.suggested_item_name)
+    );
+    if (existingIdx !== -1) {
+      const it = { ...updatedExtracted[existingIdx] };
+      it.quantity = qty;
+      const lineSub = Math.round(qty * Number(it.unit_price) * 100) / 100;
+      it.gst_amount = Math.round(lineSub * (Number(it.gst_rate) / 100) * 100) / 100;
+      it.line_total = Math.round((lineSub + it.gst_amount) * 100) / 100;
+      updatedExtracted[existingIdx] = it;
+    }
+
+    const subtotal = Math.round(updatedExtracted.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updatedExtracted.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      aiRevenueAlert: updatedAlert,
+      extractedItems: updatedExtracted,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  const handleUpdateAddonPrice = (addonIdx: number, newPrice: number) => {
+    if (!quoteResult?.aiRevenueAlert?.suggested_addons) return;
+    const price = Math.max(0, newPrice);
+    const updatedAlert = { ...quoteResult.aiRevenueAlert };
+    const addons = [...updatedAlert.suggested_addons];
+    const target = { ...addons[addonIdx] };
+    target.unit_price = price;
+    target.line_total = Math.round(target.suggested_qty * price * 1.18 * 100) / 100;
+    addons[addonIdx] = target;
+    updatedAlert.suggested_addons = addons;
+    updatedAlert.total_estimated_added_revenue = Math.round(
+      addons.reduce((sum, a) => sum + Number(a.line_total), 0) * 100
+    ) / 100;
+
+    let updatedExtracted = [...quoteResult.extractedItems];
+    const existingIdx = updatedExtracted.findIndex(
+      (it) => it.sku_id === target.suggested_sku_id || (it.is_ai_suggested && it.item_name === target.suggested_item_name)
+    );
+    if (existingIdx !== -1) {
+      const it = { ...updatedExtracted[existingIdx] };
+      it.unit_price = price;
+      const lineSub = Math.round(it.quantity * price * 100) / 100;
+      it.gst_amount = Math.round(lineSub * (Number(it.gst_rate) / 100) * 100) / 100;
+      it.line_total = Math.round((lineSub + it.gst_amount) * 100) / 100;
+      updatedExtracted[existingIdx] = it;
+    }
+
+    const subtotal = Math.round(updatedExtracted.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updatedExtracted.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      aiRevenueAlert: updatedAlert,
+      extractedItems: updatedExtracted,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  const handleToggleAddonToQuote = (addonIdx: number) => {
+    if (!quoteResult?.aiRevenueAlert?.suggested_addons) return;
+    const addon = quoteResult.aiRevenueAlert.suggested_addons[addonIdx];
+    const alreadyIn = isAddonInQuote(addon.suggested_sku_id, addon.suggested_item_name);
+
+    let updatedExtracted: ExtractedItem[];
+    if (alreadyIn) {
+      updatedExtracted = quoteResult.extractedItems.filter(
+        (it) => !(it.sku_id === addon.suggested_sku_id || (it.is_ai_suggested && it.item_name === addon.suggested_item_name))
+      );
+    } else {
+      const qty = addon.suggested_qty || 1;
+      const price = addon.unit_price || 150;
+      const lineSub = Math.round(qty * price * 100) / 100;
+      const gstAmt = Math.round(lineSub * 0.18 * 100) / 100;
+      const lineTot = Math.round((lineSub + gstAmt) * 100) / 100;
+
+      const newItem: ExtractedItem = {
+        sku_id: addon.suggested_sku_id,
+        item_name: addon.suggested_item_name,
+        quantity: qty,
+        unit: "service",
+        unit_price: price,
+        gst_rate: 18.0,
+        gst_amount: gstAmt,
+        line_total: lineTot,
+        stock_tier: "HEALTHY",
+        deficit_qty: 0,
+        is_ai_suggested: true,
+      };
+      updatedExtracted = [...quoteResult.extractedItems, newItem];
+    }
+
+    const subtotal = Math.round(updatedExtracted.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updatedExtracted.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updatedExtracted,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  const handleAddAllAddons = () => {
+    if (!quoteResult?.aiRevenueAlert?.suggested_addons) return;
+    let updatedExtracted = [...quoteResult.extractedItems];
+
+    for (const addon of quoteResult.aiRevenueAlert.suggested_addons) {
+      const alreadyIn = updatedExtracted.some(
+        (it) => it.sku_id === addon.suggested_sku_id || (it.is_ai_suggested && it.item_name === addon.suggested_item_name)
+      );
+      if (!alreadyIn) {
+        const qty = addon.suggested_qty || 1;
+        const price = addon.unit_price || 150;
+        const lineSub = Math.round(qty * price * 100) / 100;
+        const gstAmt = Math.round(lineSub * 0.18 * 100) / 100;
+        const lineTot = Math.round((lineSub + gstAmt) * 100) / 100;
+
+        updatedExtracted.push({
+          sku_id: addon.suggested_sku_id,
+          item_name: addon.suggested_item_name,
+          quantity: qty,
+          unit: "service",
+          unit_price: price,
+          gst_rate: 18.0,
+          gst_amount: gstAmt,
+          line_total: lineTot,
+          stock_tier: "HEALTHY",
+          deficit_qty: 0,
+          is_ai_suggested: true,
+        });
+      }
+    }
+
+    const subtotal = Math.round(updatedExtracted.reduce((sum, it) => sum + it.quantity * it.unit_price, 0) * 100) / 100;
+    const gstTotal = Math.round(updatedExtracted.reduce((sum, it) => sum + Number(it.gst_amount), 0) * 100) / 100;
+    const grandTotal = Math.round((subtotal + gstTotal) * 100) / 100;
+
+    setQuoteResult({
+      ...quoteResult,
+      extractedItems: updatedExtracted,
+      subtotal,
+      gstTotal,
+      grandTotal,
+    });
+  };
+
+  // -----------------------------------------------------------------------
+  // Purchase Order Review & Edit Modal Handlers
+  // -----------------------------------------------------------------------
+  const handleOpenPoModal = (poIndex: number) => {
+    if (!quoteResult?.restockPoDrafts) return;
+    setEditingPoIndex(poIndex);
+    setPoEditForm(JSON.parse(JSON.stringify(quoteResult.restockPoDrafts[poIndex])));
+    setNewPoItemName("");
+    setNewPoItemQty(1);
+    setNewPoItemPrice(100);
+  };
+
+  const handleClosePoModal = () => {
+    setEditingPoIndex(null);
+    setPoEditForm(null);
+  };
+
+  const handleUpdatePoItemQty = (itemIndex: number, newQty: number) => {
+    if (!poEditForm) return;
+    const qty = Math.max(1, newQty);
+    const updatedItems = [...poEditForm.po_items];
+    const target = { ...updatedItems[itemIndex] };
+    target.order_qty = qty;
+    target.line_total = Math.round(qty * Number(target.unit_price) * 100) / 100;
+    updatedItems[itemIndex] = target;
+    setPoEditForm({ ...poEditForm, po_items: updatedItems });
+  };
+
+  const handleUpdatePoItemPrice = (itemIndex: number, newPrice: number) => {
+    if (!poEditForm) return;
+    const price = Math.max(0, newPrice);
+    const updatedItems = [...poEditForm.po_items];
+    const target = { ...updatedItems[itemIndex] };
+    target.unit_price = price;
+    target.line_total = Math.round(Number(target.order_qty) * price * 100) / 100;
+    updatedItems[itemIndex] = target;
+    setPoEditForm({ ...poEditForm, po_items: updatedItems });
+  };
+
+  const handleRemovePoItem = (itemIndex: number) => {
+    if (!poEditForm) return;
+    const updatedItems = poEditForm.po_items.filter((_, i) => i !== itemIndex);
+    setPoEditForm({ ...poEditForm, po_items: updatedItems });
+  };
+
+  const handleAddPoItem = () => {
+    if (!poEditForm || !newPoItemName.trim()) return;
+    const qty = Math.max(1, newPoItemQty);
+    const price = Math.max(0, newPoItemPrice);
+    const newItem = {
+      sku_id: `SKU-RESTOCK-${Date.now().toString().slice(-4)}`,
+      item_name: newPoItemName.trim(),
+      order_qty: qty,
+      unit_price: price,
+      line_total: Math.round(qty * price * 100) / 100,
+    };
+    setPoEditForm({
+      ...poEditForm,
+      po_items: [...poEditForm.po_items, newItem],
+    });
+    setNewPoItemName("");
+    setNewPoItemQty(1);
+    setNewPoItemPrice(100);
+  };
+
+  const handleSavePoChanges = () => {
+    if (editingPoIndex === null || !poEditForm || !quoteResult) return;
+    const updatedPOs = [...(quoteResult.restockPoDrafts || [])];
+    updatedPOs[editingPoIndex] = poEditForm;
+    setQuoteResult({
+      ...quoteResult,
+      restockPoDrafts: updatedPOs,
+    });
+    handleClosePoModal();
+  };
+
+  const handleDeletePo = (poIndex: number) => {
+    if (!quoteResult) return;
+    const updatedPOs = (quoteResult.restockPoDrafts || []).filter((_, i) => i !== poIndex);
+    setQuoteResult({
+      ...quoteResult,
+      restockPoDrafts: updatedPOs,
+    });
+    handleClosePoModal();
   };
 
   const reset = () => {
@@ -862,30 +1138,131 @@ export default function TechnicianPortal() {
 
               {/* AI Revenue Guard Callout */}
               {quoteResult.aiRevenueAlert && quoteResult.aiRevenueAlert.has_warning && (
-                <div className="mt-6 rounded-2xl border border-[#fbbf24] bg-[#fffdf5] p-5">
+                <div className="mt-6 rounded-2xl border border-[#fbbf24] bg-[#fffdf5] p-5 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#fef3c7] text-[#b45309]">
-                      <CaptureIcon name="sparkle" className="h-4 w-4" />
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#fef3c7] text-[#b45309] shadow-sm">
+                      <CaptureIcon name="sparkle" className="h-5 w-5" />
                     </span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-wider text-[#b45309]">
-                          AI Revenue Guard Alert (Missed Ancillary Charges)
-                        </p>
-                        <span className="text-xs font-bold text-[#047857] bg-[#d1fae5] px-2 py-0.5 rounded">
-                          +₹{Number(quoteResult.aiRevenueAlert.total_estimated_added_revenue).toFixed(2)} Recoverable
-                        </span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-[#b45309]">
+                            AI Revenue Guard Alert (Missed Ancillary & Companion Services)
+                          </p>
+                          <p className="mt-0.5 text-xs text-[#78350f]">{quoteResult.aiRevenueAlert.reason}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#047857] bg-[#d1fae5] border border-[#a7f3d0] px-2.5 py-1 rounded-lg">
+                            +₹{Number(quoteResult.aiRevenueAlert.total_estimated_added_revenue).toFixed(2)} Recoverable
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleAddAllAddons}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#b45309] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#92400e] transition shadow-xs"
+                            title="Add all AI suggested companion charges to the quotation"
+                          >
+                            ⚡ Add All to Quote
+                          </button>
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs text-[#78350f]">{quoteResult.aiRevenueAlert.reason}</p>
-                      <div className="mt-3 space-y-1.5">
-                        {quoteResult.aiRevenueAlert.suggested_addons.map((addon, aIdx) => (
-                          <div key={aIdx} className="flex items-center justify-between text-xs bg-white/70 p-2 rounded-lg border border-[#fef3c7]">
-                            <span className="font-bold text-[#17221d]">
-                              💡 {addon.suggested_item_name} (Qty: {addon.suggested_qty})
-                            </span>
-                            <span className="font-bold text-[#047857]">₹{Number(addon.line_total).toFixed(2)}</span>
-                          </div>
-                        ))}
+
+                      {/* Interactive Addons Cards */}
+                      <div className="mt-4 grid gap-2.5">
+                        {quoteResult.aiRevenueAlert.suggested_addons.map((addon, aIdx) => {
+                          const inQuote = isAddonInQuote(addon.suggested_sku_id, addon.suggested_item_name);
+                          return (
+                            <div
+                              key={aIdx}
+                              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 transition ${
+                                inQuote
+                                  ? "bg-[#ecfdf5] border-[#86efac]"
+                                  : "bg-white border-[#fef3c7] hover:border-[#fde68a]"
+                              }`}
+                            >
+                              <div className="min-w-[180px] flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">💡</span>
+                                  <span className="font-extrabold text-xs text-[#17221d]">
+                                    {addon.suggested_item_name}
+                                  </span>
+                                  {inQuote && (
+                                    <span className="rounded-full bg-[#10b981] px-2 py-0.5 text-[9px] font-black text-white uppercase">
+                                      In Quote
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 text-[11px] text-[#78350f]/80 pl-6">
+                                  {addon.reason}
+                                </p>
+                              </div>
+
+                              {/* Editable Controls */}
+                              <div className="flex items-center gap-3">
+                                {/* Quantity Stepper */}
+                                <div className="flex items-center rounded-lg border border-[#17221d]/15 bg-[#fbfbfa] p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateAddonQty(aIdx, addon.suggested_qty - 1)}
+                                    className="grid h-6 w-6 place-items-center rounded bg-white text-xs font-bold text-[#17221d] hover:bg-neutral-100"
+                                    title="Decrease quantity"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={addon.suggested_qty}
+                                    onChange={(e) => handleUpdateAddonQty(aIdx, parseInt(e.target.value) || 1)}
+                                    className="w-10 text-center text-xs font-bold text-[#17221d] outline-none bg-transparent"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateAddonQty(aIdx, addon.suggested_qty + 1)}
+                                    className="grid h-6 w-6 place-items-center rounded bg-white text-xs font-bold text-[#17221d] hover:bg-neutral-100"
+                                    title="Increase quantity"
+                                  >
+                                    +
+                                  </button>
+                                  <span className="pr-1.5 text-[10px] text-[#78827d]">pts</span>
+                                </div>
+
+                                {/* Editable Unit Rate */}
+                                <div className="flex items-center rounded-lg border border-[#17221d]/15 bg-white px-2 py-1">
+                                  <span className="text-[10px] text-[#848d88] mr-1">₹</span>
+                                  <input
+                                    type="number"
+                                    step="10"
+                                    min="0"
+                                    value={addon.unit_price}
+                                    onChange={(e) => handleUpdateAddonPrice(aIdx, parseFloat(e.target.value) || 0)}
+                                    className="w-14 text-right text-xs font-bold text-[#17221d] outline-none"
+                                  />
+                                </div>
+
+                                {/* Total line */}
+                                <div className="text-right w-16">
+                                  <span className="block text-xs font-black text-[#047857]">
+                                    ₹{Number(addon.line_total).toFixed(2)}
+                                  </span>
+                                  <span className="block text-[9px] text-[#78827d]">+18% GST</span>
+                                </div>
+
+                                {/* Add/Remove Toggle Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleAddonToQuote(aIdx)}
+                                  className={`rounded-lg px-3 py-1.5 text-xs font-extrabold transition shadow-xs ${
+                                    inQuote
+                                      ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                      : "bg-[#047857] text-white hover:bg-[#065f46]"
+                                  }`}
+                                >
+                                  {inQuote ? "Remove" : "+ Add to Quote"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -894,36 +1271,88 @@ export default function TechnicianPortal() {
 
               {/* Autonomous Supplier Restock POs Drafts */}
               {quoteResult.restockPoDrafts && quoteResult.restockPoDrafts.length > 0 && (
-                <div className="mt-6 rounded-2xl border border-[#93c5fd] bg-[#f0f9ff] p-5">
+                <div className="mt-6 rounded-2xl border border-[#93c5fd] bg-[#f0f9ff] p-5 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#dbeafe] text-[#1d4ed8]">
-                      <CaptureIcon name="file" className="h-4 w-4" />
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#dbeafe] text-[#1d4ed8] shadow-sm">
+                      <CaptureIcon name="file" className="h-5 w-5" />
                     </span>
                     <div className="flex-1">
-                      <p className="text-xs font-black uppercase tracking-wider text-[#1e40af]">
-                        Autonomous Warehouse Restock POs ({quoteResult.restockPoDrafts.length} PO Drafts)
-                      </p>
-                      <p className="mt-0.5 text-xs text-[#3b82f6]">
-                        Stock shortages detected. Purchase orders ready for 1-click warehouse restock dispatch.
-                      </p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {quoteResult.restockPoDrafts.map((po, pIdx) => (
-                          <div key={pIdx} className="rounded-xl bg-white p-3 border border-[#bfdbfe]">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-[#17221d]">{po.supplier_name}</span>
-                              <span className="rounded bg-[#fee2e2] px-1.5 py-0.5 text-[9px] font-extrabold text-[#991b1b]">
-                                {po.urgency}
-                              </span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-[#1e40af]">
+                            Autonomous Warehouse Restock POs ({quoteResult.restockPoDrafts.length} PO Drafts)
+                          </p>
+                          <p className="mt-0.5 text-xs text-[#3b82f6]">
+                            Stock shortages detected. Click "Review & Edit PO" to customize suppliers, restock quantities, or urgency before warehouse dispatch.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {quoteResult.restockPoDrafts.map((po, pIdx) => {
+                          const poTotal = Math.round(
+                            po.po_items.reduce((sum, it) => sum + (Number(it.line_total) || Number(it.order_qty) * Number(it.unit_price)), 0) * 100
+                          ) / 100;
+                          return (
+                            <div
+                              key={pIdx}
+                              className="rounded-xl bg-white p-4 border border-[#bfdbfe] shadow-xs flex flex-col justify-between hover:border-[#60a5fa] transition"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-extrabold text-[#17221d] flex items-center gap-1">
+                                      🏢 {po.supplier_name}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                      po.urgency === "INSTANT_ORDER"
+                                        ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                        : "bg-blue-100 text-blue-700 border border-blue-200"
+                                    }`}
+                                  >
+                                    {po.urgency.replace("_", " ")}
+                                  </span>
+                                </div>
+
+                                <ul className="mt-3 space-y-1.5 text-xs text-[#4b5563]">
+                                  {po.po_items.map((it, itIdx) => (
+                                    <li key={itIdx} className="flex items-center justify-between bg-neutral-50 px-2 py-1 rounded border border-neutral-100">
+                                      <span className="font-medium text-[#1f2937]">
+                                        • {it.item_name}
+                                      </span>
+                                      <span className="font-bold text-[#111827]">
+                                        Qty: {it.order_qty} (₹{it.line_total})
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+
+                                {po.order_note && (
+                                  <p className="mt-2 text-[10px] text-[#6b7280] italic">
+                                    Note: {po.order_note}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[10px] text-[#6b7280] uppercase tracking-wider block font-bold">Total PO Value</span>
+                                  <span className="text-xs font-black text-[#1e40af]">₹{poTotal.toFixed(2)}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPoModal(pIdx)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[#dbeafe] px-3 py-1.5 text-xs font-bold text-[#1e40af] hover:bg-[#bfdbfe] transition shadow-xs"
+                                >
+                                  <CaptureIcon name="edit" className="h-3.5 w-3.5" />
+                                  Review & Edit PO
+                                </button>
+                              </div>
                             </div>
-                            <ul className="mt-2 space-y-1 text-xs text-[#4b5563]">
-                              {po.po_items.map((it, itIdx) => (
-                                <li key={itIdx}>
-                                  • {it.item_name} → Order Qty: <strong className="text-[#17221d]">{it.order_qty}</strong> (₹{it.line_total})
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1302,6 +1731,273 @@ export default function TechnicianPortal() {
           </div>
         )}
       </main>
+
+      {/* ------------------------------------------------------------------- */}
+      {/* 1-Click Purchase Order Review & Edit Modal */}
+      {/* ------------------------------------------------------------------- */}
+      {editingPoIndex !== null && poEditForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in">
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl border border-neutral-200">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-neutral-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#dbeafe] text-[#1d4ed8]">
+                    <CaptureIcon name="file" className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-extrabold text-[#17221d]">
+                      Review & Edit Purchase Order #{editingPoIndex + 1}
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Configure supplier details, order quantities, and dispatch urgency.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePoModal}
+                className="grid h-8 w-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition"
+              >
+                <CaptureIcon name="x" className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="mt-5 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              {/* Supplier & Urgency Controls */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-600 mb-1">
+                    Preferred Supplier / Distributor
+                  </label>
+                  <input
+                    type="text"
+                    value={poEditForm.supplier_name}
+                    onChange={(e) => setPoEditForm({ ...poEditForm, supplier_name: e.target.value })}
+                    placeholder="e.g. Havells Regional Hub, Anchor Distributors..."
+                    className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 text-xs font-bold text-[#17221d] outline-none focus:border-[#1d4ed8] focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-600 mb-1">
+                    Procurement Urgency
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPoEditForm({ ...poEditForm, urgency: "STANDARD_RESTOCK" })}
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
+                        poEditForm.urgency === "STANDARD_RESTOCK"
+                          ? "bg-blue-50 border-blue-500 text-blue-700"
+                          : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      📦 Standard Buffer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPoEditForm({ ...poEditForm, urgency: "INSTANT_ORDER" })}
+                      className={`flex-1 rounded-xl py-2 px-3 text-xs font-extrabold border transition ${
+                        poEditForm.urgency === "INSTANT_ORDER"
+                          ? "bg-rose-50 border-rose-500 text-rose-700"
+                          : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      🚨 Instant Deficit
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-600 mb-1">
+                  PO Restock Line Items
+                </label>
+                <div className="overflow-x-auto rounded-xl border border-neutral-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-neutral-50 text-[10px] font-extrabold uppercase tracking-wider text-neutral-500 border-b border-neutral-200">
+                      <tr>
+                        <th className="px-3 py-2">Item Name</th>
+                        <th className="px-3 py-2 text-center">Order Qty</th>
+                        <th className="px-3 py-2 text-right">Unit Price</th>
+                        <th className="px-3 py-2 text-right">Line Total</th>
+                        <th className="px-2 py-2 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {poEditForm.po_items.map((it, itIdx) => (
+                        <tr key={itIdx} className="hover:bg-neutral-50/60">
+                          <td className="px-3 py-2.5">
+                            <span className="font-extrabold text-[#17221d] block">{it.item_name}</span>
+                            <span className="text-[10px] text-neutral-400 font-mono">{it.sku_id}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <div className="inline-flex items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-xs">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdatePoItemQty(itIdx, it.order_qty - 1)}
+                                className="grid h-5 w-5 place-items-center rounded bg-neutral-100 text-xs font-bold text-neutral-700 hover:bg-neutral-200"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={it.order_qty}
+                                onChange={(e) => handleUpdatePoItemQty(itIdx, parseInt(e.target.value) || 1)}
+                                className="w-10 text-center text-xs font-bold text-[#17221d] outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdatePoItemQty(itIdx, it.order_qty + 1)}
+                                className="grid h-5 w-5 place-items-center rounded bg-neutral-100 text-xs font-bold text-neutral-700 hover:bg-neutral-200"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <div className="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-2 py-0.5">
+                              <span className="text-[10px] text-neutral-400 mr-0.5">₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="10"
+                                value={it.unit_price}
+                                onChange={(e) => handleUpdatePoItemPrice(itIdx, parseFloat(e.target.value) || 0)}
+                                className="w-14 text-right text-xs font-bold text-[#17221d] outline-none"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-black text-[#17221d]">
+                            ₹{Number(it.line_total).toFixed(2)}
+                          </td>
+                          <td className="px-2 py-2.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePoItem(itIdx)}
+                              className="grid h-6 w-6 place-items-center rounded text-rose-500 hover:bg-rose-50 transition mx-auto"
+                              title="Remove item from PO"
+                            >
+                              <CaptureIcon name="trash" className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {poEditForm.po_items.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-xs text-neutral-400">
+                            No items in this PO. Add items below or delete this PO.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Add New Item to PO */}
+              <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50/60 p-3">
+                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-neutral-600 mb-2">
+                  + Add Additional Item to this PO
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={newPoItemName}
+                    onChange={(e) => setNewPoItemName(e.target.value)}
+                    placeholder="Item name (e.g. 2.5 mm Wire Coil)"
+                    className="flex-1 min-w-[150px] rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium outline-none focus:border-blue-500"
+                  />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-neutral-500">Qty:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={newPoItemQty}
+                      onChange={(e) => setNewPoItemQty(parseInt(e.target.value) || 1)}
+                      className="w-12 rounded-lg border border-neutral-300 bg-white px-1.5 py-1.5 text-center text-xs font-bold outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-neutral-500">Rate (₹):</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newPoItemPrice}
+                      onChange={(e) => setNewPoItemPrice(parseFloat(e.target.value) || 0)}
+                      className="w-16 rounded-lg border border-neutral-300 bg-white px-1.5 py-1.5 text-right text-xs font-bold outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddPoItem}
+                    disabled={!newPoItemName.trim()}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition"
+                  >
+                    Add Row
+                  </button>
+                </div>
+              </div>
+
+              {/* Order Note */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-600 mb-1">
+                  Supplier Delivery Note
+                </label>
+                <textarea
+                  rows={2}
+                  value={poEditForm.order_note || ""}
+                  onChange={(e) => setPoEditForm({ ...poEditForm, order_note: e.target.value })}
+                  placeholder="Special instructions for the supplier, e.g., 'Dispatch priority batch before 11 AM'..."
+                  className="w-full rounded-xl border border-neutral-300 bg-neutral-50 px-3 py-2 text-xs font-medium text-[#17221d] outline-none focus:border-[#1d4ed8] focus:bg-white transition"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-6 pt-4 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-neutral-400">Total Purchase Order Amount</span>
+                <span className="text-base font-black text-[#1e40af]">
+                  ₹
+                  {poEditForm.po_items
+                    .reduce((sum, it) => sum + (Number(it.line_total) || Number(it.order_qty) * Number(it.unit_price)), 0)
+                    .toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDeletePo(editingPoIndex)}
+                  className="rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition"
+                >
+                  Delete PO
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClosePoModal}
+                  className="rounded-xl border border-neutral-300 px-4 py-2 text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSavePoChanges}
+                  className="rounded-xl bg-[#1e40af] px-4 py-2 text-xs font-bold text-white hover:bg-[#1e3a8a] transition shadow-xs"
+                >
+                  Save PO Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

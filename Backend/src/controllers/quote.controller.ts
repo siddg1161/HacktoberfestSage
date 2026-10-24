@@ -43,7 +43,14 @@ export class QuoteController {
   static async approveQuote(req: Request, res: Response): Promise<void> {
     try {
       const { threadId } = req.params;
-      const { accept_quote, accept_addon, approve_po, edited_line_items } = req.body;
+      const {
+        accept_quote,
+        accept_addon,
+        approve_po,
+        edited_line_items,
+        edited_po_drafts,
+        accepted_addon_skus,
+      } = req.body;
 
       console.log(`[QuoteController] Resuming post-HITL for thread ${threadId}...`);
       const result = await AgentService.approveAndDispatch({
@@ -52,6 +59,8 @@ export class QuoteController {
         acceptAddon: accept_addon,
         approvePo: approve_po,
         editedLineItems: edited_line_items,
+        editedPoDrafts: edited_po_drafts,
+        acceptedAddonSkus: accepted_addon_skus,
       });
 
       res.status(200).json({

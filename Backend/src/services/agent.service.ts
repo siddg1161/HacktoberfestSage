@@ -22,6 +22,8 @@ export interface ApproveQuoteInput {
   acceptAddon?: boolean;
   approvePo?: boolean;
   editedLineItems?: any[];
+  editedPoDrafts?: any[];
+  acceptedAddonSkus?: string[];
 }
 
 export class AgentService {
@@ -31,7 +33,9 @@ export class AgentService {
    * This guarantees that whether deployed separately or running locally,
    * the Express backend executes the LangGraph pipeline with zero failure!
    */
-  private static async executePythonAgent(payload: Record<string, any>): Promise<any> {
+  private static async executePythonAgent(
+    payload: Record<string, any>,
+  ): Promise<any> {
     // 1. Invoke standard LangGraph API Server via HTTP when AGENT_API_URL is configured
     if (config.agentApiUrl) {
       try {
@@ -40,7 +44,7 @@ export class AgentService {
         const threadId = payload.thread_id;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s for LLM vision inference
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180s for LLM inference + Render free-tier cold starts
 
         if (action === "start") {
           // 1. Ensure thread exists on LangGraph server
@@ -49,7 +53,11 @@ export class AgentService {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ thread_id: threadId }),
             signal: controller.signal,
-          }).catch(() => {});
+          }).catch((err) => {
+            console.log(
+              `[POST: ${base}/threads]: Error in creating thread!\n${err.message || err.toString()}`,
+            );
+          });
 
           // 2. Run graph with input and wait until HITL interrupt gate
           const runRes = await fetch(`${base}/threads/${threadId}/runs/wait`, {
@@ -64,7 +72,9 @@ export class AgentService {
 
           if (!runRes.ok) {
             const errBody = await runRes.text();
-            throw new Error(`LangGraph Server run failed (${runRes.status}): ${errBody}`);
+            throw new Error(
+              `LangGraph Server run failed (${runRes.status}): ${errBody}`,
+            );
           }
 
           const runData: any = await runRes.json();
@@ -93,21 +103,26 @@ export class AgentService {
                 human_accepted_addon: payload.decisions?.accept_addon ?? true,
                 human_approved_po: payload.decisions?.approve_po ?? true,
                 edited_line_items: payload.decisions?.edited_line_items || null,
+                restock_po_drafts: payload.decisions?.edited_po_drafts || null,
+                accepted_addon_skus: payload.decisions?.accepted_addon_skus || null,
               },
             }),
             signal: controller.signal,
           });
 
           // 2. Resume graph execution to run execute_dispatch_node
-          const resumeRes = await fetch(`${base}/threads/${threadId}/runs/wait`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              assistant_id: "quoteflow",
-              input: null,
-            }),
-            signal: controller.signal,
-          });
+          const resumeRes = await fetch(
+            `${base}/threads/${threadId}/runs/wait`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                assistant_id: "quoteflow",
+                input: null,
+              }),
+              signal: controller.signal,
+            },
+          );
 
           // 3. Fetch finalized state
           const stateRes = await fetch(`${base}/threads/${threadId}/state`, {
@@ -117,7 +132,8 @@ export class AgentService {
           const stateData: any = stateRes.ok ? await stateRes.json() : {};
           clearTimeout(timeoutId);
 
-          const finalValues = stateData.values || (resumeRes.ok ? await resumeRes.json() : {});
+          const finalValues =
+            stateData.values || (resumeRes.ok ? await resumeRes.json() : {});
           return {
             thread_id: threadId,
             next: stateData.next || [],
@@ -149,7 +165,38 @@ export class AgentService {
           };
         }
       } catch (httpErr: any) {
-        console.warn(`[AgentService] LangGraph API error (${config.agentApiUrl}): ${httpErr.message}. Falling back to local process.`);
+        console.warn(
+          `[AgentService] LangGraph API error (${config.agentApiUrl}): ${httpErr.message}.`,
+        );
+
+        // Check if a real local .venv Python exists before attempting local spawn
+        const possibleAgentDirs = [
+          path.resolve(__dirname, "../../../Agent"),
+          path.resolve(__dirname, "../../Agent"),
+          path.resolve(process.cwd(), "Agent"),
+          path.resolve(process.cwd(), "../Agent"),
+          path.resolve(__dirname, "../../../"),
+          process.cwd(),
+        ];
+        const agentDir =
+          possibleAgentDirs.find((d) =>
+            fs.existsSync(path.join(d, "agent", "graph.py")),
+          ) || possibleAgentDirs[0];
+
+        const hasLocalVenv = [
+          path.join(agentDir, ".venv", "Scripts", "python.exe"),
+          path.join(agentDir, ".venv", "bin", "python"),
+          path.resolve(agentDir, "../Agent/.venv/Scripts/python.exe"),
+          path.resolve(agentDir, "../.venv/Scripts/python.exe"),
+        ].some((p) => fs.existsSync(p));
+
+        if (!hasLocalVenv) {
+          throw new Error(
+            `Agent service error: ${httpErr.message}. The AI Agent may be waking up from free-tier sleep (takes ~25s). Please retry now.`,
+          );
+        }
+
+        console.log(`[AgentService] Local .venv detected. Falling back to local process.`);
       }
     }
 
@@ -166,8 +213,9 @@ export class AgentService {
       ];
 
       const agentDir =
-        possibleAgentDirs.find((d) => fs.existsSync(path.join(d, "agent", "graph.py"))) ||
-        possibleAgentDirs[0];
+        possibleAgentDirs.find((d) =>
+          fs.existsSync(path.join(d, "agent", "graph.py")),
+        ) || possibleAgentDirs[0];
 
       // Find .venv python executable in Agent folder
       const possiblePythons = [
@@ -180,9 +228,13 @@ export class AgentService {
       ];
 
       const pythonExe =
-        possiblePythons.find((p) => (p.includes(path.sep) ? fs.existsSync(p) : true)) || "python";
+        possiblePythons.find((p) =>
+          p.includes(path.sep) ? fs.existsSync(p) : true,
+        ) || "python";
 
-      console.log(`[AgentService] Using Python: "${pythonExe}" in cwd: "${agentDir}"`);
+      console.log(
+        `[AgentService] Using Python: "${pythonExe}" in cwd: "${agentDir}"`,
+      );
 
       const scriptContent = `
 import sys
@@ -264,7 +316,11 @@ elif action == "edit":
 
       pyProcess.on("error", (err) => {
         console.error("[AgentService] Spawn error:", err);
-        reject(new Error(`Failed to spawn Python agent (${pythonExe}): ${err.message}`));
+        reject(
+          new Error(
+            `Failed to spawn Python agent (${pythonExe}): ${err.message}`,
+          ),
+        );
       });
 
       pyProcess.stdout.on("data", (data) => {
@@ -278,13 +334,19 @@ elif action == "edit":
       pyProcess.on("close", (code) => {
         if (code !== 0) {
           console.error("[AgentService] Python error:", stderr);
-          return reject(new Error(`Agent process failed with code ${code}: ${stderr}`));
+          return reject(
+            new Error(`Agent process failed with code ${code}: ${stderr}`),
+          );
         }
 
         const marker = "OUTPUT_JSON:";
         const idx = stdout.indexOf(marker);
         if (idx === -1) {
-          return reject(new Error(`Failed to parse agent output. Raw: ${stdout} | Stderr: ${stderr}`));
+          return reject(
+            new Error(
+              `Failed to parse agent output. Raw: ${stdout} | Stderr: ${stderr}`,
+            ),
+          );
         }
 
         try {
@@ -328,8 +390,16 @@ elif action == "edit":
       threadId,
       status: "PAUSED_AT_HITL_GATE",
       nextPendingNode: res.next || [],
-      clientName: values.client_name || values.clientName || input.clientName || "Sharma Electrical Contractors",
-      clientPhone: values.client_phone || values.clientPhone || input.clientPhone || "+91-9826012345",
+      clientName:
+        values.client_name ||
+        values.clientName ||
+        input.clientName ||
+        "Sharma Electrical Contractors",
+      clientPhone:
+        values.client_phone ||
+        values.clientPhone ||
+        input.clientPhone ||
+        "+91-9826012345",
       extractedItems: values.extracted_items || values.extractedItems || [],
       subtotal: Number(values.subtotal ?? values.subTotal ?? 0),
       gstTotal: Number(values.gst_total ?? values.gstTotal ?? 0),
@@ -353,6 +423,8 @@ elif action == "edit":
         accept_addon: input.acceptAddon ?? true,
         approve_po: input.approvePo ?? true,
         edited_line_items: input.editedLineItems || null,
+        edited_po_drafts: input.editedPoDrafts || null,
+        accepted_addon_skus: input.acceptedAddonSkus || null,
       },
     };
 
@@ -366,21 +438,29 @@ elif action == "edit":
       clientName: values.client_name || values.clientName,
       grandTotal: Number(values.grand_total ?? values.grandTotal ?? 0),
       clientPortalUrl: portalUrl,
-      posIssued: values.pos_issued || values.posIssued || values.dispatchResults?.pos_issued || [],
+      posIssued:
+        values.pos_issued ||
+        values.posIssued ||
+        values.dispatchResults?.pos_issued ||
+        [],
     };
   }
 
   /**
    * Updates line items for a quote in both LangGraph state checkpoint and (if committed) Neon DB.
    */
-  static async editQuote(threadId: string, editedLineItems: any[]): Promise<any> {
+  static async editQuote(
+    threadId: string,
+    editedLineItems: any[],
+  ): Promise<any> {
     let subtotal = 0;
     let gstTotal = 0;
 
     const normalizedItems = editedLineItems.map((item) => {
       const qty = Number(item.quantity) || 1;
       const price = Number(item.unit_price) || 0;
-      const gstRate = item.gst_rate !== undefined ? Number(item.gst_rate) : 18.0;
+      const gstRate =
+        item.gst_rate !== undefined ? Number(item.gst_rate) : 18.0;
       const lineSub = Math.round(qty * price * 100) / 100;
       const gstAmt = Math.round(lineSub * (gstRate / 100.0) * 100) / 100;
       const lineTotal = Math.round((lineSub + gstAmt) * 100) / 100;
@@ -410,11 +490,17 @@ elif action == "edit":
         edited_line_items: normalizedItems,
       });
     } catch (err: any) {
-      console.warn(`[AgentService] LangGraph edit warning for ${threadId}:`, err.message);
+      console.warn(
+        `[AgentService] LangGraph edit warning for ${threadId}:`,
+        err.message,
+      );
     }
 
     // If quote is already saved in Neon DB, update DB rows atomically
-    const quoteRes = await query("SELECT id FROM quotes WHERE thread_id = $1;", [threadId]);
+    const quoteRes = await query(
+      "SELECT id FROM quotes WHERE thread_id = $1;",
+      [threadId],
+    );
     if (quoteRes.rows.length > 0) {
       const quoteId = quoteRes.rows[0].id;
       const client = await pool.connect();
@@ -422,9 +508,12 @@ elif action == "edit":
         await client.query("BEGIN;");
         await client.query(
           "UPDATE quotes SET subtotal = $1, gst_total = $2, grand_total = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4;",
-          [subtotal, gstTotal, grandTotal, quoteId]
+          [subtotal, gstTotal, grandTotal, quoteId],
         );
-        await client.query("DELETE FROM quote_line_items WHERE quote_id = $1;", [quoteId]);
+        await client.query(
+          "DELETE FROM quote_line_items WHERE quote_id = $1;",
+          [quoteId],
+        );
         for (const item of normalizedItems) {
           await client.query(
             `INSERT INTO quote_line_items (
@@ -441,7 +530,7 @@ elif action == "edit":
               item.line_total,
               item.stock_tier || "HEALTHY",
               item.is_ai_suggested ?? false,
-            ]
+            ],
           );
         }
         await client.query("COMMIT;");
