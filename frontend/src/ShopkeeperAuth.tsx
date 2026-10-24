@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { api } from "./api";
 import { authClient } from "./auth-client";
-import { setActiveBusiness } from "./businessContext";
+import { setActiveBusiness, useActiveBusiness, clearAllSessions } from "./businessContext";
 
 type IconName = "arrow" | "check" | "store" | "sparkle" | "building" | "users" | "phone";
 
@@ -70,6 +70,8 @@ export default function ShopkeeperAuth({
 }: {
   onSuccess: () => void;
 }) {
+  const { business: activeBiz } = useActiveBusiness();
+  const hasActiveShop = Boolean(activeBiz?.business_id && activeBiz.business_id.trim().length > 0);
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -173,6 +175,47 @@ export default function ShopkeeperAuth({
               Review estimates sent by technicians, approve customer quotes, and manage your team.
             </p>
           </div>
+
+          {hasActiveShop && (
+            <div className="mt-6 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/80 p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#17221d] text-[#caff52] font-black text-base shadow-sm">
+                    <Icon name="store" className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <span className="inline-block rounded-full bg-emerald-200/70 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                      Active Business Workspace
+                    </span>
+                    <p className="font-extrabold text-[#17221d] text-base">{activeBiz.business_name}</p>
+                    <p className="text-xs text-[#55615b]">
+                      {activeBiz.industry} • Owner: {activeBiz.owner_name || "Admin"} • {activeBiz.currency_symbol || "₹"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSuccess()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#17221d] px-4 py-2.5 text-xs font-black text-[#caff52] hover:bg-neutral-800 transition shadow-sm"
+                >
+                  <span>Continue to Shop Dashboard</span>
+                  <Icon name="arrow" className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAllSessions();
+                    window.location.reload();
+                  }}
+                  className="rounded-xl border border-neutral-300 bg-white px-3.5 py-2 text-xs font-bold text-neutral-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition"
+                >
+                  Switch / Sign out
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Tab Selector */}
           <div className="mt-6 flex rounded-2xl bg-[#f4f5ef] p-1.5 border border-[#17221d]/8">

@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { api, QuoteResult, CatalogItem, ExtractedItem, RestockPoDraft } from "./api";
-import { useActiveBusiness, getActiveWorker } from "./businessContext";
+import { useActiveBusiness, getActiveWorker, clearAllSessions } from "./businessContext";
 
 type CaptureIcon =
   | "arrow"
@@ -917,6 +917,18 @@ export default function TechnicianPortal() {
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#d6ff78] text-sm font-extrabold">
               {initials}
             </span>
+            <button
+              type="button"
+              onClick={async () => {
+                await clearAllSessions();
+                window.location.hash = "";
+                window.location.reload();
+              }}
+              className="hidden sm:inline-block text-xs font-bold text-[#87908b] hover:text-rose-600 transition ml-1"
+              title="Sign out of technician session"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </header>

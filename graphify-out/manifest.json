@@ -156,10 +156,10 @@
     "semantic_hash": "c3eb9dcb3683ecc683beb1a8eb62a769"
   },
   "Backend/src/middleware/require-session.ts": {
-    "mtime": 1792854550.4077334,
-    "seen": 1792855522.597129,
-    "ast_hash": "351847ef86e83b18fea1309c4b37088d",
-    "semantic_hash": "351847ef86e83b18fea1309c4b37088d"
+    "mtime": 1792869472.272365,
+    "seen": 1792871188.7806778,
+    "ast_hash": "e26895d1014f3100a4ae890c73508886",
+    "semantic_hash": ""
   },
   "Backend/src/routes/business.routes.ts": {
     "mtime": 1792862435.5383327,
@@ -186,10 +186,10 @@
     "semantic_hash": ""
   },
   "Backend/src/server.ts": {
-    "mtime": 1792854550.4097333,
-    "seen": 1792855522.597129,
-    "ast_hash": "03b060ac299d415112b7ba7bce326e40",
-    "semantic_hash": "03b060ac299d415112b7ba7bce326e40"
+    "mtime": 1792869454.4972966,
+    "seen": 1792871188.7806778,
+    "ast_hash": "1ef3c8c9338c9fc78529a59ebadc343d",
+    "semantic_hash": ""
   },
   "Backend/src/services/agent.service.ts": {
     "mtime": 1792865910.743885,
@@ -228,16 +228,16 @@
     "semantic_hash": "dd8830aff5e7494c9dd2ca14d9ce2277"
   },
   "frontend/src/AdminDashboard.tsx": {
-    "mtime": 1792862435.5388484,
-    "seen": 1792864532.9523172,
-    "ast_hash": "222429bdccefd6c7bdff12ea08bf0b0f",
+    "mtime": 1792871769.5654693,
+    "seen": 1792871838.3839393,
+    "ast_hash": "b06939e39528be5dfd970b5b97755586",
     "semantic_hash": ""
   },
   "frontend/src/App.tsx": {
-    "mtime": 1792854550.4201646,
-    "seen": 1792855522.597129,
-    "ast_hash": "95ecab9936ac81d5f9ff44752ccb7d94",
-    "semantic_hash": "95ecab9936ac81d5f9ff44752ccb7d94"
+    "mtime": 1792871744.790307,
+    "seen": 1792871838.3839393,
+    "ast_hash": "041784f4d503bd265f34be3022ba780f",
+    "semantic_hash": ""
   },
   "frontend/src/CustomerPortal.tsx": {
     "mtime": 1792865910.7458844,
@@ -252,21 +252,21 @@
     "semantic_hash": "054a6033fe088fafd6145b8ca7a677a2"
   },
   "frontend/src/ShopkeeperAuth.tsx": {
-    "mtime": 1792854550.423166,
-    "seen": 1792855522.597129,
-    "ast_hash": "fe34d8e1d844af7a195bdf59dfb3cfab",
-    "semantic_hash": "fe34d8e1d844af7a195bdf59dfb3cfab"
+    "mtime": 1792871121.8988698,
+    "seen": 1792871188.7806778,
+    "ast_hash": "9c47104ac3e0c2c1c5e92918ec0aff74",
+    "semantic_hash": ""
   },
   "frontend/src/TechnicianAuth.tsx": {
-    "mtime": 1792862435.5393705,
-    "seen": 1792864532.9523172,
-    "ast_hash": "4d9f13d5ac2d608ec255f31523a09bcd",
+    "mtime": 1792871077.5290468,
+    "seen": 1792871188.7806778,
+    "ast_hash": "2cd3b4abc8bc84bfee086615d8d92563",
     "semantic_hash": ""
   },
   "frontend/src/TechnicianPortal.tsx": {
-    "mtime": 1792867709.6389172,
-    "seen": 1792867729.1552913,
-    "ast_hash": "15d57abbb3a9869c73081444df483233",
+    "mtime": 1792871803.2629323,
+    "seen": 1792871838.3839393,
+    "ast_hash": "aef8f2850e0d84690308b12f580bc13b",
     "semantic_hash": ""
   },
   "frontend/src/WorkersTab.tsx": {
@@ -276,9 +276,9 @@
     "semantic_hash": ""
   },
   "frontend/src/api.ts": {
-    "mtime": 1792862435.5402112,
-    "seen": 1792864532.9523172,
-    "ast_hash": "4db39ebd65221edf5995b0cbf91d9e6c",
+    "mtime": 1792869486.1904614,
+    "seen": 1792871188.7806778,
+    "ast_hash": "7c2eb9409604c004cdcc7f14a0fff947",
     "semantic_hash": ""
   },
   "frontend/src/auth-client.ts": {
@@ -288,10 +288,10 @@
     "semantic_hash": "cd87f8f5199c0cff3725dd074966e475"
   },
   "frontend/src/businessContext.ts": {
-    "mtime": 1792854550.4291775,
-    "seen": 1792855522.597129,
-    "ast_hash": "519bfa06f4edfefc3f6dc3cf82a0a769",
-    "semantic_hash": "519bfa06f4edfefc3f6dc3cf82a0a769"
+    "mtime": 1792871699.2770882,
+    "seen": 1792871838.3839393,
+    "ast_hash": "1388948a2dd513979e1563f6892723e8",
+    "semantic_hash": ""
   },
   "frontend/src/main.tsx": {
     "mtime": 1792179768.51869,

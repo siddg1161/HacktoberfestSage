@@ -5,7 +5,19 @@ export const API_BASE =
     : "https://hacktoberfestsage.onrender.com");
 
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  return fetch(input, { ...init, credentials: "include" });
+  const headers = new Headers(init.headers || {});
+  try {
+    const rawWorker = typeof localStorage !== "undefined" ? localStorage.getItem("quoteflow_active_worker") : null;
+    if (rawWorker) {
+      const worker = JSON.parse(rawWorker);
+      if (worker?.email) {
+        headers.set("x-worker-email", worker.email);
+      }
+    }
+  } catch {
+    // Ignore storage parse issues
+  }
+  return fetch(input, { ...init, headers, credentials: "include" });
 }
 
 export interface StartQuotePayload {
